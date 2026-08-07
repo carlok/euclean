@@ -8,6 +8,11 @@ relations `R0` and `R1`, ten axioms `a0`–`a9`. No component of the pipeline is
 told what any of it denotes. The interpretation exists, but it is held outside
 this tree and is consulted only after discovery has been frozen.
 
+**Start here:** [`docs/EXECUTIVE_SUMMARY.md`](docs/EXECUTIVE_SUMMARY.md) — what
+was found, what did not survive scrutiny, and why the interpretation stays
+unpublished for now. Full structural detail in
+[`docs/structural-findings.md`](docs/structural-findings.md).
+
 ## Pipeline
 
 ```
