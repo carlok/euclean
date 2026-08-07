@@ -20,7 +20,15 @@ def head(pf):
 
 
 def applications(pf):
-    """Every application in the term, as (head, tuple of argument heads)."""
+    """Every application in the term, as (head, tuple of argument heads).
+
+    Each application is reported once, at the outermost node of its
+    modus-ponens spine. Recursing into the spine as an ordinary child would
+    re-report every prefix of the same application — `f a`, then `f a b`, then
+    `f a b c` — so a rule with three premises appeared three times under three
+    different motif keys, all of them describing one inference. That inflated
+    both the occurrence counts and the number of distinct motifs.
+    """
     out = []
 
     def go(p):
@@ -29,8 +37,14 @@ def applications(pf):
             while spine["t"] == "mp":
                 args.append(spine["arg"])
                 spine = spine["fn"]
+            args.reverse()
             if spine["t"] == "ax":
-                out.append((spine["name"], tuple(head(a) for a in reversed(args))))
+                out.append((spine["name"], tuple(head(a) for a in args)))
+            else:
+                go(spine)
+            for a in args:
+                go(a)
+            return
         for c in P.children(p):
             go(c)
 
