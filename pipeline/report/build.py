@@ -474,8 +474,28 @@ def key_facts(run, control, loop_run):
             f"{imp.get('min_spearman')} to {imp.get('max_spearman')} |"
         )
         L.append(f"| member pairs compared | {imp.get('pairs_compared')} |")
+    top = stability.get("top_statement_survival", [])[:4]
+    if top:
+        L.append(
+            f"| most-repeated statements, survival | "
+            f"{', '.join(str(r['survives']) + '/' + str(r['of']) for r in top)} |"
+        )
     for src, s in by_src.items():
         L.append(f"| best concept survival, {src} | {s.get('best_survival')} |")
+        L.append(
+            f"| candidates appearing in one member only, {src} | "
+            f"{s.get('appearing_once_only')}/{s.get('candidates')} |"
+        )
+    grid_disj = sum(
+        json.loads(pathlib.Path(f).read_text()).get("disjunctive", 0)
+        for f in glob.glob(str(ROOT / "runs" / "ens" / "*" / "summary.json"))
+    )
+    grid_ca = sum(
+        json.loads(pathlib.Path(f).read_text()).get("case_analysis_derived", 0)
+        for f in glob.glob(str(ROOT / "runs" / "ens" / "*" / "summary.json"))
+    )
+    L.append(f"| grid disjunctive statements | {grid_disj} |")
+    L.append(f"| grid statements derived by case analysis | {grid_ca} |")
     if stages.get("T0") and stages.get("T1"):
         a, b = stages["T0"], stages["T1"]
         L.append(f"| mean proof size, T0 to T1 | {a['mean_proof_size']} to {b['mean_proof_size']} |")
