@@ -244,19 +244,19 @@ section required knowing what any symbol denotes.
 
 | measure | min | mean | max |
 |---|---|---|---|
-| kept | 84 | 482.3 | 1221 |
-| existential_free | 9 | 205.6 | 971 |
-| disjunctive | 0 | 32.1 | 322 |
-| case_analysis_derived | 0 | 44.0 | 398 |
-| concept_candidates | 0 | 32.7 | 88 |
+| kept | 84 | 492.2 | 1599 |
+| existential_free | 9 | 215.3 | 1341 |
+| disjunctive | 0 | 31.3 | 304 |
+| case_analysis_derived | 0 | 44.3 | 442 |
+| concept_candidates | 0 | 32.6 | 91 |
 
 The spread is the first result. Identical machinery, identical budget,
 and the corpora differ by an order of magnitude in size and in how much
 of their content is existential. Any single run's numbers are a sample,
 not a measurement.
 
-**Importance ranking.** Rank correlation across 490 member
-pairs: mean 0.4097, range [-0.7857, 1.0].
+**Importance ranking.** Rank correlation across 474 member
+pairs: mean 0.3932, range [-0.8857, 1.0].
 
 That is moderate agreement with a very wide spread, and it qualifies the
 single-run result directly: the *ordering* the importance measure produces
@@ -278,13 +278,13 @@ configuration is a property of that configuration.
 | 6/45 | 3 | 35 | yes |
 | 5/45 | 3 | 130 | no |
 | 5/45 | 4 | 20 | yes |
-| 4/45 | 4 | 237 | yes |
-| 3/45 | 2 | 361 | yes |
-| 3/45 | 4 | 89 | no |
+| 4/45 | 4 | 281 | yes |
+| 3/45 | 2 | 332 | yes |
+| 3/45 | 3 | 89 | no |
 | 3/45 | 5 | 25 | no |
-| 3/45 | 4 | 25 | yes |
 | 3/45 | 4 | 18 | yes |
-| 2/45 | 4 | 580 | yes |
+| 3/45 | 2 | 9 | no |
+| 3/45 | 4 | 6 | no |
 
 **This is a negative result, and the clearest one in the sprint.** The
 best-surviving definition appears in 14 of
@@ -303,8 +303,8 @@ compression alone plainly does not identify a concept worth keeping.
 **Statements repeatedly ranked most important.**
 
 - 28/45 — `∀ (b0 : Obj) (b1 : Obj), R0 b1 b0 b0 b1`
-- 26/45 — `∀ (b0 : Obj) (b1 : Obj), R1 b0 b1 b0 b1`
-- 23/45 — `∀ (b0 : Obj) (b1 : Obj), R0 b1 b0 b1 b0`
+- 25/45 — `∀ (b0 : Obj) (b1 : Obj), R1 b0 b1 b0 b1`
+- 22/45 — `∀ (b0 : Obj) (b1 : Obj), R0 b1 b0 b1 b0`
 - 16/45 — `∀ (b0 : Obj), R0 b0 b0 b0 b0`
 - 11/45 — `∀ (b0 : Obj) (b1 : Obj), R0 b0 b1 b1`
 - 10/45 — `∀ (b0 : Obj) (b1 : Obj), R1 b1 b1 b0 b0`
@@ -312,4 +312,97 @@ compression alone plainly does not identify a concept worth keeping.
 - 9/45 — `∀ (b0 : Obj) (b1 : Obj), R1 b1 b0 b0`
 - 8/45 — `∀ (b0 : Obj) (b1 : Obj) (b2 : Obj) (b3 : Obj), R0 b0 b1 b2 b3 → R0 b2 b3 b1 b0`
 - 7/45 — `∀ (b0 : Obj) (b1 : Obj) (b2 : Obj) (b3 : Obj), R0 b0 b1 b2 b3 → R0 b1 b0 b2 b3`
+
+## 9. Does any concept accelerate the search?
+
+Each condition was run over seeds [0, 1, 2, 3, 4] at a fixed budget against
+80 held-out targets, committed to before any concept was scored.
+
+Baseline: [18, 12, 8, 20, 13], mean 14.2, range [8, 20].
+
+**The baseline's own seed-to-seed range is the whole story here.** It spans
+more than the effect of almost every concept, so a single-seed measurement
+would have reported ordinary sampling variance as concepts damaging the
+search. Only a range disjoint from the baseline's counts as an effect.
+
+| concept | source | mean targets | range | delta | mean kept | separated |
+|---|---|---|---|---|---|---|
+| `S00` | premise-conjunction | 15.0 | [12, 19] | +0.8 | 141.2 | no |
+| `S01` | premise-conjunction | 14.8 | [10, 21] | +0.6 | 112.4 | no |
+| `S02` | premise-conjunction | 15.2 | [12, 19] | +1.0 | 147.2 | no |
+| `S03` | premise-conjunction | 15.6 | [12, 18] | +1.4 | 146.6 | no |
+| `S04` | premise-conjunction | 13.6 | [12, 16] | -0.6 | 118.4 | no |
+| `S05` | premise-conjunction | 14.4 | [10, 20] | +0.2 | 125.4 | no |
+| `S06` | premise-conjunction | 14.0 | [11, 17] | -0.2 | 133.4 | no |
+| `S07` | premise-conjunction | 14.6 | [13, 18] | +0.4 | 143.2 | no |
+| `R00` | proof-role | 5.6 | [4, 7] | -8.6 | 366.4 | yes |
+| `R01` | proof-role | 13.0 | [6, 21] | -1.2 | 265.4 | no |
+| `R02` | proof-role | 13.8 | [11, 17] | -0.4 | 212.0 | no |
+| `R03` | proof-role | 14.2 | [8, 20] | +0.0 | 134.8 | no |
+| `R04` | proof-role | 6.0 | [4, 8] | -8.2 | 401.6 | no |
+| `R05` | proof-role | 14.2 | [8, 20] | +0.0 | 134.8 | no |
+| `R06` | proof-role | 5.6 | [4, 7] | -8.6 | 366.4 | yes |
+| `R07` | proof-role | 6.0 | [4, 8] | -8.2 | 401.6 | no |
+
+No concept improves on the baseline beyond noise. 2 of
+16 separate from it at all, and every one of those is *worse*.
+
+Those same concepts keep two to three times as many statements as the
+baseline while reaching a third as many targets. That is the exact failure
+mode raw yield was rejected for: more output, less of what was wanted.
+
+## 10. Conjecture generation
+
+| source | proved | unresolved | yield |
+|---|---|---|---|
+| hypothesis-dropping | 0 | 40 | 0% |
+| positive-control | 7 | 33 | 18% |
+| symmetry | 0 | 41 | 0% |
+| symmetry-control | 0 | 0 | 0% |
+
+**Read the yields against the ceiling.** The same bounded attempt recovers
+only 7 of 40 statements already
+known true (18%). A source scoring 0% against a prover with
+that recall has told you about the prover, not the source. The honest
+conclusion is that conjecture yield could not be measured here, not that
+the proposers produce falsehoods.
+
+The symmetry view itself checks out: 12/12
+permutations it reports as symmetries canonicalize back to the statement
+they came from. That check is structural and deterministic; routing it
+through the prover instead reported a weak prover as a broken view.
+
+Nothing is recorded as refuted. There is no counter-model machinery here,
+so an unreached conjecture is unresolved and nothing more.
+
+## 11. Where the failure is: candidates or criteria?
+
+Two candidate sources ran through all 45 grid members. One mines recurring
+conjunctions of hypotheses from statements; the other mines recurring
+inference steps from proof terms.
+
+| source | candidates | best survival | mean | surviving over half | appearing once only |
+|---|---|---|---|---|---|
+| premise-conjunction | 212 | 14/45 | 1.56 | 0 | 143 |
+| proof-role | 227 | 3/45 | 1.03 | 0 | 222 |
+
+**The prediction was that proof-role candidates would be the more robust of
+the two, and it is wrong.** They are markedly less robust: the best one
+appears in 3 of 45 members against 14 of 45, and almost every one of them
+appears in exactly one member and never again.
+
+In hindsight the reason is not subtle. A role candidate is lifted from a
+concrete proof subterm, and which subterms exist depends on which proofs the
+search happened to build. Change the seeding and the proofs change wholesale.
+Statement syntax is at least constrained by the axioms, so the same forms
+recur across configurations; proof structure is far more contingent than it
+looks.
+
+Taken with sections 9 and 10, the answer to the question this sprint asked
+is that the failure is not localized in the criteria or in the candidates.
+A second, more mathematically motivated candidate source did worse; a
+non-compression criterion could not separate any concept from seed noise;
+and conjecture yield could not be measured against so weak a prover.
+Automatic concept invention does not work in this setting, and that now
+rests on three independent attempts to make it work rather than one.
 

@@ -4,12 +4,14 @@
 machine recover useful higher-level structure from the population of statements
 it can prove — without being told what the theory means?
 
-**Answer, two sprints in.** Partly, and the part that works is not the part that
-was expected to. Structural importance computed with no semantic input reliably
-identifies the same small set of statements as central, across three independent
-anonymizations of the theory. Automatic concept invention does not survive the
-same test: no invented definition appears in more than a third of runs, and the
-highest-scoring ones are artifacts of how the search was seeded.
+**Answer, three sprints in.** Partly, and the part that works is not the part
+that was expected to. Structural importance computed with no semantic input
+reliably identifies the same small set of statements as central, across three
+independent anonymizations of the theory. Automatic concept invention fails, and
+now fails under three independent attempts to rescue it: a second and more
+mathematically motivated way of generating candidates does *worse* than the
+first, a non-compression criterion cannot separate any concept from seed noise,
+and conjecture yield cannot be measured against a prover this weak.
 
 Everything below was produced without any component being told what the theory
 denotes. The interpretation exists and is held outside this repository.
@@ -97,8 +99,30 @@ library it puts 1382 of 1904 theorems in one cluster with a silhouette of
 **−0.115** — worse than random on its own metric. Average linkage gives 501
 clusters, largest 49, silhouette **+0.531**.
 
-**Not attempted.** Conjecture generation, and the representation-invariance test
-across a second encoding. Both remain open and are the natural next work.
+**Concept invention fails on every criterion tried, not just compression.**
+Sprint 2 falsified compression and left the alternatives untested. Sprint 3
+built them.
+
+*Search acceleration.* Against a target set frozen in advance, no concept from
+either source improves on the baseline beyond noise. Two of sixteen separate
+from the baseline at all and both are worse — while keeping two to three times
+as many statements. More output, less of what was wanted, which is the precise
+failure raw yield was rejected for.
+
+*Candidate source.* The sprint's falsifiable prediction was that concepts mined
+from recurring proof roles would outlast concepts mined from statement syntax,
+because proof structure should depend less on the seeding. It is wrong. Role
+candidates are markedly less robust: best survival 3 of 45 members against 14 of
+45, with 222 of 227 appearing in exactly one member and never again. A role
+candidate is lifted from a concrete proof subterm, and which subterms exist
+depends entirely on which proofs the search happened to build.
+
+*Conjecture yield.* Both proposers score 0%, and that number is not usable: the
+same bounded attempt recovers only 18% of statements already known true. The
+yield measures the prover, not the proposer, and is reported that way.
+
+**Not attempted.** The representation-invariance test across a second encoding,
+and a control domain. Both remain open.
 
 ## Reading the corpus numbers
 
@@ -148,6 +172,6 @@ justified.
 | Pipeline | complete, reproducible, dependency-pinned |
 | Verified theorems | 1904 reference corpus; 21,705 across the grid |
 | Robust finding | structural importance identifies a stable central set |
-| Negative finding | invented definitions do not survive re-configuration |
-| Open | conjecture generation; representation invariance |
+| Negative finding | concept invention fails on compression, acceleration and candidate source alike |
+| Open | representation invariance; a control domain |
 | Interpretation | evaluated privately; not published, and should not be yet |

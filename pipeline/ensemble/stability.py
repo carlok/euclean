@@ -63,8 +63,9 @@ def concept_survival(members):
                     "distinct": str(m["summary"]["config"]["assume_distinct"]),
                     "layout": m["summary"]["config"]["atom_layout"],
                     "params": m["summary"]["config"]["params"],
-                    "covers": c["scores"]["theorems_covered"],
-                    "dl": c["scores"]["description_length_reduction"],
+                    "covers": c["scores"].get("theorems_covered", 0),
+                    "dl": c["scores"].get("description_length_reduction"),
+                    "source": c.get("source", "premise-conjunction"),
                     "render": c,
                 }
             )
@@ -87,13 +88,37 @@ def concept_survival(members):
                 # assumed is telling you about the assumption, not the theory
                 "requires_assumed_distinctness": distinct_modes.isdisjoint({"False"}),
                 "median_coverage": sorted(h["covers"] for h in hits)[len(hits) // 2],
-                "arity": example["scores"]["arity"],
+                "source": hits[0]["source"],
+                "arity": example["scores"].get("arity"),
                 "params": example["params"],
                 "body": example["body"],
             }
         )
     rows.sort(key=lambda r: (-r["survives"], -r["median_coverage"]))
     return rows
+
+
+def survival_by_source(rows, members):
+    """The sprint's central comparison: do role concepts outlast syntactic ones?
+
+    Reported as a distribution rather than a single rate. If one source has ten
+    candidates surviving once each and the other has one surviving ten times,
+    their means coincide and their meanings do not.
+    """
+    n = len(members)
+    out = {}
+    for source in sorted({r["source"] for r in rows}):
+        group = [r for r in rows if r["source"] == source]
+        rates = sorted((r["survives"] for r in group), reverse=True)
+        out[source] = {
+            "candidates": len(group),
+            "best_survival": f"{rates[0]}/{n}" if rates else None,
+            "best_rate": round(rates[0] / n, 3) if rates else None,
+            "mean_survival": round(sum(rates) / len(rates), 2) if rates else None,
+            "surviving_over_half": sum(1 for x in rates if x > n / 2),
+            "appearing_once_only": sum(1 for x in rates if x == 1),
+        }
+    return out
 
 
 def importance_stability(members, min_members=3, top=200):
@@ -188,12 +213,14 @@ def main():
     if not members:
         raise SystemExit("no ensemble members found under runs/ens/")
 
+    _survival = concept_survival(members)
     report = {
         "members": len(members),
         "member_ids": [m["summary"]["id"] for m in members],
         "theory_seeds": sorted({m["summary"]["theory_seed"] for m in members}),
         "corpus_spread": corpus_spread(members),
-        "concept_survival": concept_survival(members),
+        "concept_survival": _survival,
+        "survival_by_source": survival_by_source(_survival, members),
         "importance_stability": importance_stability(members),
         "top_statement_survival": top_statement_survival(members, args.top),
     }
@@ -209,6 +236,11 @@ def main():
         f"importance rank correlation across {imp['pairs_compared']} member pairs: "
         f"mean {imp['mean_spearman']}, range [{imp['min_spearman']}, {imp['max_spearman']}]"
     )
+    print("\nsurvival by candidate source:")
+    for src, s in report["survival_by_source"].items():
+        print(f"  {src:20s} candidates {s['candidates']:4d}  best {s['best_survival']}  "
+              f"mean {s['mean_survival']}  >half {s['surviving_over_half']}  "
+              f"once-only {s['appearing_once_only']}")
     print("\nconcepts by survival:")
     for row in report["concept_survival"][:12]:
         flag = " (needs assumed distinctness)" if row["requires_assumed_distinctness"] else ""

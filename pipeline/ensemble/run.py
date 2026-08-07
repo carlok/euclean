@@ -17,7 +17,7 @@ import time
 from ..canon import relations as R
 from ..chainer import run as chainer_run
 from ..cluster import run as cluster_run
-from ..concepts import invent
+from ..concepts import invent, roles
 from ..kernel import theory as theory_mod
 from ..report import importance as importance_mod
 from ..views import build as views_build
@@ -91,8 +91,32 @@ def run_one(entry, theory, generations, min_support, top, log=print):
     relmap = R.canonical_map(theory)
     for c in ranked:
         c["canonical_key"] = repr(R.key(c["body"], relmap))
+        c.setdefault("source", "premise-conjunction")
+
+    # The second candidate source. Both are carried in the same artifact so the
+    # stability analysis can compare their survival rates directly, which is the
+    # question this sprint exists to answer.
+    role = roles.candidates(records, theory, min_support=max(4, min_support // 2), top=40)
+    role.sort(key=lambda c: -c["support"])
+    role_ranked = role[:top]
+    for i, c in enumerate(role_ranked):
+        c["name"] = f"R{i:02d}"
+        c["canonical_key"] = repr(R.key(c["statement_ast"], relmap))
+        c["scores"] = {
+            "arity": len(c["params"]),
+            "theorems_covered": len(c["theorems"]),
+            "support": c["support"],
+        }
+        c.pop("proof_ast", None)
+        c.pop("statement_ast", None)
+
     (out / "concepts.json").write_text(
-        json.dumps({"ranked": ranked, "all_candidates": len(scored)}, indent=1, default=str) + "\n"
+        json.dumps(
+            {"ranked": ranked + role_ranked, "all_candidates": len(scored) + len(role)},
+            indent=1,
+            default=str,
+        )
+        + "\n"
     )
 
     ranking = importance_mod.score(records, views, assignments)
@@ -114,6 +138,7 @@ def run_one(entry, theory, generations, min_support, top, log=print):
         "disjunctive": disjunctive,
         "case_analysis_derived": case_analysis,
         "concept_candidates": len(scored),
+        "role_candidates": len(role),
         "rejected": rejected,
         "seconds": round(time.time() - t0, 1),
     }

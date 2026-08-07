@@ -97,6 +97,115 @@ def stability_section(w, stability):
     w("")
 
 
+def acceleration_section(w, ab):
+    w("## 9. Does any concept accelerate the search?")
+    w("")
+    if not ab:
+        w("_Not run._")
+        w("")
+        return
+    b = ab["baseline"]
+    w(f"Each condition was run over seeds {ab['seeds']} at a fixed budget against")
+    w(f"{ab['targets']} held-out targets, committed to before any concept was scored.")
+    w("")
+    w(f"Baseline: {b['hits_per_seed']}, mean {b['mean']}, range {b['range']}.")
+    w("")
+    w("**The baseline's own seed-to-seed range is the whole story here.** It spans")
+    w("more than the effect of almost every concept, so a single-seed measurement")
+    w("would have reported ordinary sampling variance as concepts damaging the")
+    w("search. Only a range disjoint from the baseline's counts as an effect.")
+    w("")
+    w("| concept | source | mean targets | range | delta | mean kept | separated |")
+    w("|---|---|---|---|---|---|---|")
+    for r in ab["concepts"]:
+        if "delta_mean" not in r:
+            continue
+        w(f"| `{r['name']}` | {r['source']} | {r['mean_targets']} | {r['range']} | "
+          f"{r['delta_mean']:+} | {r['mean_kept']} | "
+          f"{'yes' if r['separated_from_baseline'] else 'no'} |")
+    w("")
+    s = ab.get("spread", {})
+    w(f"No concept improves on the baseline beyond noise. {s.get('separated', 0)} of")
+    w(f"{s.get('of', 0)} separate from it at all, and every one of those is *worse*.")
+    w("")
+    w("Those same concepts keep two to three times as many statements as the")
+    w("baseline while reaching a third as many targets. That is the exact failure")
+    w("mode raw yield was rejected for: more output, less of what was wanted.")
+    w("")
+
+
+def conjecture_section(w, cj):
+    w("## 10. Conjecture generation")
+    w("")
+    if not cj:
+        w("_Not run._")
+        w("")
+        return
+    rec = cj["attempt_recall"]
+    w("| source | proved | unresolved | yield |")
+    w("|---|---|---|---|")
+    for s, c in cj["by_source"].items():
+        w(f"| {s} | {c['proved']} | {c['unresolved']} | {c['yield']:.0%} |")
+    w("")
+    w(f"**Read the yields against the ceiling.** The same bounded attempt recovers")
+    w(f"only {rec['recovered']} of {rec['known_statements_tried']} statements already")
+    w(f"known true ({rec['recall']:.0%}). A source scoring 0% against a prover with")
+    w("that recall has told you about the prover, not the source. The honest")
+    w("conclusion is that conjecture yield could not be measured here, not that")
+    w("the proposers produce falsehoods.")
+    w("")
+    ctrl = cj["symmetry_control"]
+    w(f"The symmetry view itself checks out: {ctrl['consistent']}/{ctrl['checked']}")
+    w("permutations it reports as symmetries canonicalize back to the statement")
+    w("they came from. That check is structural and deterministic; routing it")
+    w("through the prover instead reported a weak prover as a broken view.")
+    w("")
+    w("Nothing is recorded as refuted. There is no counter-model machinery here,")
+    w("so an unreached conjecture is unresolved and nothing more.")
+    w("")
+
+
+def source_section(w, stability):
+    w("## 11. Where the failure is: candidates or criteria?")
+    w("")
+    by_src = (stability or {}).get("survival_by_source")
+    if not by_src:
+        w("_Not run._")
+        w("")
+        return
+    n = stability["members"]
+    w(f"Two candidate sources ran through all {n} grid members. One mines recurring")
+    w("conjunctions of hypotheses from statements; the other mines recurring")
+    w("inference steps from proof terms.")
+    w("")
+    w("| source | candidates | best survival | mean | surviving over half | appearing once only |")
+    w("|---|---|---|---|---|---|")
+    for src, s in by_src.items():
+        w(f"| {src} | {s['candidates']} | {s['best_survival']} | {s['mean_survival']} | "
+          f"{s['surviving_over_half']} | {s['appearing_once_only']} |")
+    w("")
+    w("**The prediction was that proof-role candidates would be the more robust of")
+    w("the two, and it is wrong.** They are markedly less robust: the best one")
+    w("appears in 3 of 45 members against 14 of 45, and almost every one of them")
+    w("appears in exactly one member and never again.")
+    w("")
+    w("In hindsight the reason is not subtle. A role candidate is lifted from a")
+    w("concrete proof subterm, and which subterms exist depends on which proofs the")
+    w("search happened to build. Change the seeding and the proofs change wholesale.")
+    w("Statement syntax is at least constrained by the axioms, so the same forms")
+    w("recur across configurations; proof structure is far more contingent than it")
+    w("looks.")
+    w("")
+    w("Taken with sections 9 and 10, the answer to the question this sprint asked")
+    w("is that the failure is not localized in the criteria or in the candidates.")
+    w("A second, more mathematically motivated candidate source did worse; a")
+    w("non-compression criterion could not separate any concept from seed noise;")
+    w("and conjecture yield could not be measured against so weak a prover.")
+    w("Automatic concept invention does not work in this setting, and that now")
+    w("rests on three independent attempts to make it work rather than one.")
+    w("")
+
+
 def build(run, control, loop_run):
     run_dir = ROOT / "runs" / run
     corpus = load(run_dir, "corpus.json", [])
@@ -108,6 +217,8 @@ def build(run, control, loop_run):
     loop = load(ROOT / "runs" / loop_run, "loop.json", {})
     ctrl = load(ROOT / "runs" / control, "concepts.json", {})
     stability = load(ROOT / "runs" / "ensemble", "stability.json", {})
+    ablation = load(run_dir, "ablation.json", {})
+    conjectures = load(run_dir, "conjectures.json", {})
 
     L = []
     w = L.append
@@ -311,6 +422,9 @@ def build(run, control, loop_run):
     w("")
 
     stability_section(w, stability)
+    acceleration_section(w, ablation)
+    conjecture_section(w, conjectures)
+    source_section(w, stability)
 
     return "\n".join(L) + "\n"
 
