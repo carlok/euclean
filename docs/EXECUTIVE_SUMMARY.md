@@ -228,20 +228,22 @@ justified.
 |---|---|
 | reference corpus, kernel-verified | 1904 |
 | grid members | 45 |
-| grid theorems, kernel-verified | 17369 |
-| grid corpus size, min-max | 84-907 |
-| grid existential-free, min-max | 9-507 |
-| importance rank correlation, mean | 0.4077 |
+| grid theorems, kernel-verified | 17154 |
+| grid corpus size, min-max | 84-912 |
+| grid existential-free, min-max | 9-512 |
+| importance rank correlation, mean | 0.4 |
 | importance rank correlation, range | -0.7714 to 1.0 |
-| member pairs compared | 590 |
+| member pairs compared | 588 |
 | most-repeated statements, survival | 34/45, 31/45, 29/45, 22/45 |
-| best concept survival, premise-conjunction | 14/45 |
-| candidates appearing in one member only, premise-conjunction | 132/201 |
+| best concept survival, premise-conjunction | 15/45 |
+| candidates appearing in one member only, premise-conjunction | 131/200 |
 | best concept survival, proof-role | 3/45 |
-| candidates appearing in one member only, proof-role | 219/225 |
-| grid disjunctive statements | 1143 |
-| grid statements derived by case analysis | 1506 |
+| candidates appearing in one member only, proof-role | 209/214 |
+| best concept survival, quantified | 12/45 |
+| candidates appearing in one member only, quantified | 180/238 |
+| grid disjunctive statements | 1146 |
+| grid statements derived by case analysis | 1490 |
 | mean proof size, T0 to T1 | 56.07 to 32.43 |
 | max proof depth, T0 to T1 | 45 to 25 |
 | concepts separating from the ablation baseline | 2/16 |
-| conjecture attempt recall on known statements | 7/40 |
+| conjecture attempt recall on known statements | 14/40 |

@@ -17,7 +17,7 @@ import time
 from ..canon import relations as R
 from ..chainer import run as chainer_run
 from ..cluster import run as cluster_run
-from ..concepts import invent, roles
+from ..concepts import invent, quantified, roles
 from ..canon import normalize as N
 from ..kernel import emit, theory as theory_mod
 from ..report import importance as importance_mod
@@ -111,9 +111,27 @@ def run_one(entry, theory, generations, min_support, top, log=print):
         c.pop("proof_ast", None)
         c.pop("statement_ast", None)
 
+    # The third candidate source. Sprint 3 compared where candidates come from
+    # and found no difference; this compares what they can say, which is the
+    # last untested explanation for the null.
+    quant = quantified.candidates(records, min_support=max(4, min_support // 2))
+    quant.sort(key=lambda c: -c["support"])
+    quant_ranked = quant[:top]
+    for i, c in enumerate(quant_ranked):
+        c["name"] = f"Q{i:02d}"
+        c["canonical_key"] = repr(R.key(c["body"], relmap))
+        c["scores"] = {
+            "arity": len(c["params"]),
+            "theorems_covered": len(c["theorems"]),
+            "support": c["support"],
+        }
+
     (out / "concepts.json").write_text(
         json.dumps(
-            {"ranked": ranked + role_ranked, "all_candidates": len(scored) + len(role)},
+            {
+                "ranked": ranked + role_ranked + quant_ranked,
+                "all_candidates": len(scored) + len(role) + len(quant),
+            },
             indent=1,
             default=str,
         )
@@ -148,6 +166,7 @@ def run_one(entry, theory, generations, min_support, top, log=print):
         "case_analysis_derived": case_analysis,
         "concept_candidates": len(scored),
         "role_candidates": len(role),
+        "quantified_candidates": len(quant),
         "rejected": rejected,
         "seconds": round(time.time() - t0, 1),
     }
