@@ -20,6 +20,7 @@ import time
 from collections import Counter, defaultdict
 
 from ..ablation import targets as targets_mod
+from ..backward import search as backward
 from ..canon import relations as R
 from ..kernel import emit, theory as theory_mod
 from . import propose as propose_mod
@@ -43,6 +44,30 @@ def attempt(theory, conjectures, seeds=(0, 1, 2), budget=None, log=print):
         got, kept = targets_mod.reachable(theory, budget, seed=s, relmap=relmap)
         reached |= got
         log(f"  attempt seed {s}: {kept} statements, {len(set(wanted) & reached)} conjectures hit")
+    forward_only = set(wanted) & reached
+
+    # The backward prover is used *in addition to* forward saturation, not
+    # instead of it. On known-true statements each recovers 18% alone, and the
+    # two sets are disjoint: together they reach 35%. Neither clears the bar
+    # that was set for a replacement; used together the improvement is real and
+    # close to free, since the backward pass costs under a second.
+    env = dict(theory.env)
+    for key, group in wanted.items():
+        if key in reached:
+            continue
+        stmt = group[0]["statement_ast"]
+        pf = backward.prove_closed(stmt, env, seconds=2.0)
+        if pf is None:
+            continue
+        try:
+            from ..kernel import formula as _F, proof as _P
+
+            if _F.same(_P.infer(pf, env), stmt):
+                reached.add(key)
+        except Exception:
+            continue
+    backward_added = (set(wanted) & reached) - forward_only
+    log(f"  forward reached {len(forward_only)}, backward added {len(backward_added)}")
     log(f"  {time.time() - t0:.0f}s over {len(seeds)} seeds")
 
     results = []

@@ -244,19 +244,19 @@ section required knowing what any symbol denotes.
 
 | measure | min | mean | max |
 |---|---|---|---|
-| kept | 84 | 386.0 | 907 |
-| existential_free | 9 | 116.8 | 507 |
-| disjunctive | 0 | 25.4 | 307 |
-| case_analysis_derived | 0 | 33.5 | 372 |
-| concept_candidates | 0 | 24.2 | 69 |
+| kept | 84 | 381.2 | 912 |
+| existential_free | 9 | 112.9 | 512 |
+| disjunctive | 0 | 25.5 | 326 |
+| case_analysis_derived | 0 | 33.1 | 379 |
+| concept_candidates | 0 | 23.7 | 68 |
 
 The spread is the first result. Identical machinery, identical budget,
 and the corpora differ by an order of magnitude in size and in how much
 of their content is existential. Any single run's numbers are a sample,
 not a measurement.
 
-**Importance ranking.** Rank correlation across 590 member
-pairs: mean 0.4077, range [-0.7714, 1.0].
+**Importance ranking.** Rank correlation across 588 member
+pairs: mean 0.4, range [-0.7714, 1.0].
 
 That is moderate agreement with a very wide spread, and it qualifies the
 single-run result directly: the *ordering* the importance measure produces
@@ -270,25 +270,25 @@ configuration is a property of that configuration.
 
 | survives | arity | median coverage | needs assumed disequalities |
 |---|---|---|---|
-| 14/45 | 3 | 49 | yes |
+| 15/45 | 3 | 49 | yes |
 | 14/45 | 5 | 34 | no |
+| 12/45 | 2 | 29 | yes |
+| 12/45 | 4 | 28 | no |
+| 9/45 | 2 | 8 | yes |
 | 7/45 | 3 | 24 | yes |
 | 6/45 | 6 | 44 | no |
 | 6/45 | 6 | 36 | no |
-| 6/45 | 4 | 21 | yes |
+| 6/45 | 3 | 35 | yes |
 | 6/45 | 4 | 20 | yes |
-| 5/45 | 3 | 24 | yes |
-| 4/45 | 3 | 247 | yes |
-| 4/45 | 3 | 130 | no |
-| 4/45 | 3 | 101 | yes |
-| 3/45 | 2 | 138 | yes |
-| 3/45 | 3 | 113 | no |
-| 3/45 | 4 | 89 | no |
-| 3/45 | 3 | 25 | yes |
+| 6/45 | 2 | 9 | yes |
+| 5/45 | 4 | 18 | yes |
+| 5/45 | 4 | 18 | yes |
+| 5/45 | 4 | 18 | yes |
+| 5/45 | 3 | 17 | yes |
 
 **This is a negative result, and the clearest one in the sprint.** The
-best-surviving definition appears in 14 of
-45 members (31%), and 6 of the top ten
+best-surviving definition appears in 15 of
+45 members (33%), and 6 of the top ten
 never appear at all unless disequalities are assumed. No invented
 definition is robust to the configuration it was invented under.
 
@@ -356,13 +356,13 @@ mode raw yield was rejected for: more output, less of what was wanted.
 | source | proved | unresolved | yield |
 |---|---|---|---|
 | hypothesis-dropping | 0 | 40 | 0% |
-| positive-control | 7 | 33 | 18% |
-| symmetry | 0 | 41 | 0% |
+| positive-control | 14 | 26 | 35% |
+| symmetry | 9 | 32 | 22% |
 | symmetry-control | 0 | 0 | 0% |
 
 **Read the yields against the ceiling.** The same bounded attempt recovers
-only 7 of 40 statements already
-known true (18%). A source scoring 0% against a prover with
+only 14 of 40 statements already
+known true (35%). A source scoring 0% against a prover with
 that recall has told you about the prover, not the source. The honest
 conclusion is that conjecture yield could not be measured here, not that
 the proposers produce falsehoods.
@@ -383,8 +383,9 @@ inference steps from proof terms.
 
 | source | candidates | best survival | mean | surviving over half | appearing once only |
 |---|---|---|---|---|---|
-| premise-conjunction | 201 | 14/45 | 1.65 | 0 | 132 |
-| proof-role | 225 | 3/45 | 1.04 | 0 | 219 |
+| premise-conjunction | 200 | 15/45 | 1.66 | 0 | 131 |
+| proof-role | 214 | 3/45 | 1.03 | 0 | 209 |
+| quantified | 238 | 12/45 | 1.45 | 0 | 180 |
 
 **The prediction was that proof-role candidates would be the more robust of
 the two, and it is wrong.** They are markedly less robust: the best one

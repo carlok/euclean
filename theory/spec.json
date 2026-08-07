@@ -956,5 +956,6 @@
    }
   }
  ],
- "seed": 0
+ "seed": 0,
+ "theory": "incumbent"
 }
