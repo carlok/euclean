@@ -123,8 +123,40 @@ depends entirely on which proofs the search happened to build.
 same bounded attempt recovers only 18% of statements already known true. The
 yield measures the prover, not the proposer, and is reported that way.
 
-**Not attempted.** The representation-invariance test across a second encoding,
-and a control domain. Both remain open.
+**Two planned tests turn out not to be measurable by this pipeline, which is
+itself a result.** Both were named as the obvious next work. A structured
+review established that neither can be run as intended, for structural reasons
+rather than effort.
+
+*Invariance across a second encoding.* The plan was to re-encode the same
+theory with permuted primitives and an equivalent axiom basis, then check
+whether the same structures emerge. Two blockers. The canonical key that makes
+cross-run comparison possible normalizes binder names, hypothesis order and
+vacuous binders, but it deliberately does not normalize argument *position* —
+it must not, since whether a relation's slots are interchangeable is one of the
+things the pipeline is supposed to discover. So a permuted encoding yields
+different keys for the same statement and cross-encoding survival is zero by
+construction. Separately, promoting derived statements to axioms in the second
+encoding puts them behind the filter that rejects axiom restatements, so seven
+of the twelve top-ranked statements could not enter the second corpus at all.
+The test as specified would return "does not survive" for reasons that have
+nothing to do with encoding.
+
+*A control domain.* The plan was an anonymized group-like theory, chosen
+because its human development invents many layered concepts over few axioms.
+Relationally encoded so the kernel needs no function symbols, it has one 3-ary
+relation and five axioms, of which four become usable rules — against two
+relations and ten axioms for the theory under test. **A control poorer than the
+subject cannot test whether the subject is too poor.** Three further blockers
+were measured: the identity axiom is existential-then-universal and the engine
+stores it inert, so every concept defined relative to an identity is
+unreachable; the encoding makes every product an existential, yielding zero
+existential-free statements and so an empty target pool for the one
+non-compression criterion that exists; and the concepts that make group theory
+concept-dense are set-level, which the candidate miner cannot express.
+
+The honest statement is that both tests are currently unbuildable, not
+unbuilt.
 
 ## Reading the corpus numbers
 
@@ -168,7 +200,11 @@ It should not, for three reasons.
 
 The condition for revisiting: a finding in the top grade bands — a consequence
 that is genuinely non-obvious, or a structure that survives the grid *and* the
-restatement check *and* a second encoding. At that stage the interpretation
+restatement check *and* an independent re-derivation. The original wording
+required a second encoding; that condition is withdrawn, because the second
+encoding is not measurable by this pipeline for the reasons given above, and a
+publication condition nobody can evaluate is not a condition. At that stage the
+interpretation
 becomes part of the claim rather than a convenience, and publishing it is
 justified.
 
@@ -180,7 +216,7 @@ justified.
 | Verified theorems | see the generated table below |
 | Robust finding | structural importance identifies a stable central set |
 | Negative finding | concept invention fails on compression, acceleration and candidate source alike |
-| Open | representation invariance; a control domain |
+| Open | both planned next tests are currently unmeasurable; see above |
 | Interpretation | evaluated privately; not published, and should not be yet |
 
 ## Generated counts
