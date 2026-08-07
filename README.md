@@ -117,3 +117,8 @@ uv run python tests/test_kernel.py && uv run python tests/test_case_analysis.py 
 Five things are kept distinct and are never allowed to substitute for one
 another: an observed pattern, a proposed abstraction, a conjecture, a
 kernel-verified theorem, and an interpretation. Negative results are reported.
+
+## Licence
+
+MIT — see [LICENSE](LICENSE). This covers the public tree. The interpretation of
+the theory lives outside it and is not distributed.
