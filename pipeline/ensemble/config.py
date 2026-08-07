@@ -38,6 +38,10 @@ BUDGET = {
     "max_case_splits": 6,
     "branch_rounds": 2,
     "time_budget": 20,
+    "rewrites_per_equation": 25,
+    "max_case_proof_size": 400,
+    "case_split_depth": 2,
+    "param_bias": 0.85,
 }
 PROMOTE_MAX = 25
 

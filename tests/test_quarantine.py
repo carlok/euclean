@@ -53,6 +53,53 @@ def test_leakguard_actually_catches_a_planted_violation():
         planted.unlink()
 
 
+def test_guard_refuses_to_report_clean_on_a_tree_it_did_not_scan():
+    """The failure this pins down was silent and total.
+
+    `walk()` used to return quietly when a declared public root was missing, so
+    moving the theory to a new directory would have produced `leakguard: clean`,
+    exit 0, and three green tests — with a hard-tier term sitting in the theory
+    source. A guard that reports clean on a directory it never opened is worse
+    than no guard, because it is believed.
+    """
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("lg", ROOT / "tools" / "leakguard.py")
+    lg = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(lg)
+
+    required = [d for d in lg.PUBLIC_DIRS if d not in lg.OPTIONAL_DIRS]
+    assert required, "no mandatory public root is declared"
+    for d in required:
+        assert (ROOT / d).exists(), f"declared public root {d!r} is missing"
+
+    original = list(lg.PUBLIC_DIRS)
+    lg.PUBLIC_DIRS.append("definitely-not-a-real-directory-name")
+    try:
+        lg.assert_roots()
+        raise AssertionError("the guard accepted a missing mandatory root")
+    except SystemExit:
+        pass
+    finally:
+        lg.PUBLIC_DIRS[:] = original
+
+
+def test_repository_root_files_are_scanned():
+    """A file dropped at the root — a handoff note, a scratch plan — used to sit
+    entirely outside the guard."""
+    planted = ROOT / "_root_scan_probe.md"
+    planted.write_text(f"{_probe_term()}\n")
+    try:
+        r = subprocess.run(
+            [sys.executable, str(ROOT / "tools" / "leakguard.py")],
+            capture_output=True,
+            text=True,
+        )
+        assert r.returncode == 1, "a forbidden term at the repository root passed the guard"
+    finally:
+        planted.unlink()
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):

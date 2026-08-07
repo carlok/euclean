@@ -19,8 +19,14 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 VOCAB = ROOT / "secret" / "forbidden_vocab.txt"
 
-PUBLIC_DIRS = ["theory", "pipeline", "generated", "metadata", "runs", "tools", "tests", "docs"]
-ARTIFACT_DIRS = {"theory", "generated", "metadata", "runs", "docs"}
+# Declared public roots. A root listed here that does not exist is a hard
+# error, not a silent skip: the failure mode this prevents is moving the theory
+# to a new directory and getting "clean" from a guard that never opened it.
+PUBLIC_DIRS = ["theory", "theories", "pipeline", "generated", "metadata", "runs",
+               "tools", "tests", "docs"]
+# Roots that legitimately may be absent (nothing has been generated yet).
+OPTIONAL_DIRS = {"theories", "generated", "metadata", "runs"}
+ARTIFACT_DIRS = {"theory", "theories", "generated", "metadata", "runs", "docs"}
 
 SKIP_DIRS = {".git", ".lake", "__pycache__", ".DS_Store", "secret"}
 SKIP_SUFFIXES = {".olean", ".ilean", ".trace", ".hash", ".pyc"}
@@ -41,6 +47,22 @@ def load_vocab():
     return hard, artifacts
 
 
+def assert_roots():
+    """Every mandatory public root must exist before anything is scanned.
+
+    This cannot live inside `walk`: `walk` is a generator, so its body does not
+    run until it is iterated, and a check placed there fires late or not at all.
+    The property being enforced — never report clean on a tree that was not
+    scanned — has to be settled up front.
+    """
+    missing = [d for d in PUBLIC_DIRS if d not in OPTIONAL_DIRS and not (ROOT / d).exists()]
+    if missing:
+        sys.exit(
+            f"leakguard: declared public root(s) {missing} are missing. Refusing to "
+            f"report clean on a tree it has not scanned."
+        )
+
+
 def walk(dirname):
     base = ROOT / dirname
     if not base.exists():
@@ -55,15 +77,23 @@ def walk(dirname):
         yield path
 
 
+def root_files():
+    """Top-level files. Without this, anything dropped at the repo root — a
+    handoff note, a scratch plan — is outside the guard entirely."""
+    for path in ROOT.iterdir():
+        if path.is_file() and path.suffix not in SKIP_SUFFIXES and not path.name.startswith("."):
+            yield path
+
+
 def scan_vocab(hard, artifacts):
     hard_re = re.compile(r"\b(" + "|".join(hard) + r")\w*", re.IGNORECASE)
     art_re = re.compile(r"\b(" + "|".join(artifacts) + r")\w*", re.IGNORECASE)
     hits = []
-    for dirname in PUBLIC_DIRS:
+    for dirname in PUBLIC_DIRS + ["<root>"]:
         patterns = [("hard", hard_re)]
         if dirname in ARTIFACT_DIRS:
             patterns.append(("artifact", art_re))
-        for path in walk(dirname):
+        for path in (root_files() if dirname == "<root>" else walk(dirname)):
             try:
                 text = path.read_text(encoding="utf-8")
             except (UnicodeDecodeError, OSError):
@@ -95,6 +125,7 @@ def scan_quarantine():
 
 
 def main():
+    assert_roots()
     hard, artifacts = load_vocab()
     hits = scan_vocab(hard, artifacts) + scan_quarantine()
     if not hits:

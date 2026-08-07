@@ -244,19 +244,19 @@ section required knowing what any symbol denotes.
 
 | measure | min | mean | max |
 |---|---|---|---|
-| kept | 84 | 492.2 | 1599 |
-| existential_free | 9 | 215.3 | 1341 |
-| disjunctive | 0 | 31.3 | 304 |
-| case_analysis_derived | 0 | 44.3 | 442 |
-| concept_candidates | 0 | 32.6 | 91 |
+| kept | 84 | 386.0 | 907 |
+| existential_free | 9 | 116.8 | 507 |
+| disjunctive | 0 | 25.4 | 307 |
+| case_analysis_derived | 0 | 33.5 | 372 |
+| concept_candidates | 0 | 24.2 | 69 |
 
 The spread is the first result. Identical machinery, identical budget,
 and the corpora differ by an order of magnitude in size and in how much
 of their content is existential. Any single run's numbers are a sample,
 not a measurement.
 
-**Importance ranking.** Rank correlation across 474 member
-pairs: mean 0.3932, range [-0.8857, 1.0].
+**Importance ranking.** Rank correlation across 590 member
+pairs: mean 0.4077, range [-0.7714, 1.0].
 
 That is moderate agreement with a very wide spread, and it qualifies the
 single-run result directly: the *ordering* the importance measure produces
@@ -270,21 +270,21 @@ configuration is a property of that configuration.
 
 | survives | arity | median coverage | needs assumed disequalities |
 |---|---|---|---|
+| 14/45 | 3 | 49 | yes |
 | 14/45 | 5 | 34 | no |
-| 11/45 | 3 | 49 | yes |
 | 7/45 | 3 | 24 | yes |
 | 6/45 | 6 | 44 | no |
 | 6/45 | 6 | 36 | no |
-| 6/45 | 3 | 35 | yes |
-| 5/45 | 3 | 130 | no |
-| 5/45 | 4 | 20 | yes |
-| 4/45 | 4 | 281 | yes |
-| 3/45 | 2 | 332 | yes |
-| 3/45 | 3 | 89 | no |
-| 3/45 | 5 | 25 | no |
-| 3/45 | 4 | 18 | yes |
-| 3/45 | 2 | 9 | no |
-| 3/45 | 4 | 6 | no |
+| 6/45 | 4 | 21 | yes |
+| 6/45 | 4 | 20 | yes |
+| 5/45 | 3 | 24 | yes |
+| 4/45 | 3 | 247 | yes |
+| 4/45 | 3 | 130 | no |
+| 4/45 | 3 | 101 | yes |
+| 3/45 | 2 | 138 | yes |
+| 3/45 | 3 | 113 | no |
+| 3/45 | 4 | 89 | no |
+| 3/45 | 3 | 25 | yes |
 
 **This is a negative result, and the clearest one in the sprint.** The
 best-surviving definition appears in 14 of
@@ -302,16 +302,16 @@ compression alone plainly does not identify a concept worth keeping.
 
 **Statements repeatedly ranked most important.**
 
-- 28/45 — `∀ (b0 : Obj) (b1 : Obj), R0 b1 b0 b0 b1`
-- 25/45 — `∀ (b0 : Obj) (b1 : Obj), R1 b0 b1 b0 b1`
-- 22/45 — `∀ (b0 : Obj) (b1 : Obj), R0 b1 b0 b1 b0`
-- 16/45 — `∀ (b0 : Obj), R0 b0 b0 b0 b0`
-- 11/45 — `∀ (b0 : Obj) (b1 : Obj), R0 b0 b1 b1`
-- 10/45 — `∀ (b0 : Obj) (b1 : Obj), R1 b1 b1 b0 b0`
-- 9/45 — `∀ (b0 : Obj) (b1 : Obj), R1 b0 b0 b1 b1`
-- 9/45 — `∀ (b0 : Obj) (b1 : Obj), R1 b1 b0 b0`
-- 8/45 — `∀ (b0 : Obj) (b1 : Obj) (b2 : Obj) (b3 : Obj), R0 b0 b1 b2 b3 → R0 b2 b3 b1 b0`
-- 7/45 — `∀ (b0 : Obj) (b1 : Obj) (b2 : Obj) (b3 : Obj), R0 b0 b1 b2 b3 → R0 b1 b0 b2 b3`
+- 34/45 — `∀ (b0 : Obj) (b1 : Obj), Rel4_0 b1 b0 b0 b1`
+- 31/45 — `∀ (b0 : Obj) (b1 : Obj), Rel4_0 b0 b1 b0 b1`
+- 29/45 — `∀ (b0 : Obj) (b1 : Obj), Rel4_0 b1 b0 b1 b0`
+- 22/45 — `∀ (b0 : Obj), Rel4_0 b0 b0 b0 b0`
+- 14/45 — `∀ (b0 : Obj) (b1 : Obj), Rel3_0 b0 b1 b1`
+- 14/45 — `∀ (b0 : Obj) (b1 : Obj), Rel4_0 b1 b1 b0 b0`
+- 13/45 — `∀ (b0 : Obj) (b1 : Obj), Rel4_0 b0 b0 b1 b1`
+- 10/45 — `∀ (b0 : Obj) (b1 : Obj), Rel3_0 b1 b0 b0`
+- 8/45 — `∀ (b0 : Obj) (b1 : Obj) (b2 : Obj) (b3 : Obj), Rel4_0 b0 b1 b2 b3 → Rel4_0 b2 b3 b1 b0`
+- 7/45 — `∀ (b0 : Obj) (b1 : Obj) (b2 : Obj) (b3 : Obj), Rel4_0 b0 b1 b2 b3 → Rel4_0 b1 b0 b2 b3`
 
 ## 9. Does any concept accelerate the search?
 
@@ -383,8 +383,8 @@ inference steps from proof terms.
 
 | source | candidates | best survival | mean | surviving over half | appearing once only |
 |---|---|---|---|---|---|
-| premise-conjunction | 212 | 14/45 | 1.56 | 0 | 143 |
-| proof-role | 227 | 3/45 | 1.03 | 0 | 222 |
+| premise-conjunction | 201 | 14/45 | 1.65 | 0 | 132 |
+| proof-role | 225 | 3/45 | 1.04 | 0 | 219 |
 
 **The prediction was that proof-role candidates would be the more robust of
 the two, and it is wrong.** They are markedly less robust: the best one

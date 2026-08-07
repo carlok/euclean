@@ -18,7 +18,8 @@ from ..canon import relations as R
 from ..chainer import run as chainer_run
 from ..cluster import run as cluster_run
 from ..concepts import invent, roles
-from ..kernel import theory as theory_mod
+from ..canon import normalize as N
+from ..kernel import emit, theory as theory_mod
 from ..report import importance as importance_mod
 from ..views import build as views_build
 from . import config as cfg_mod
@@ -121,7 +122,15 @@ def run_one(entry, theory, generations, min_support, top, log=print):
 
     ranking = importance_mod.score(records, views, assignments)
     for item in ranking:
-        item["canonical_key"] = repr(R.key(by_id[item["id"]]["statement_ast"], relmap))
+        stmt = by_id[item["id"]]["statement_ast"]
+        item["canonical_key"] = repr(R.key(stmt, relmap))
+        # Counting by canonical key while displaying a raw statement made the
+        # published table unreadable: the same relation appeared with three
+        # arguments in one row and four in another, because each row showed
+        # whichever member's identifier permutation happened to come first.
+        item["canonical_statement"] = emit.formula(
+            N.canonical(R.apply(stmt, relmap)), top=True
+        )
     (out / "importance.json").write_text(json.dumps(ranking) + "\n")
 
     disjunctive = sum(1 for r in records if "∨" in r["normalized_statement"])

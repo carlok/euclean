@@ -58,6 +58,13 @@ Guard first — it fails the moment the public tree acquires semantics:
 uv run python tools/leakguard.py
 ```
 
+**This command cannot succeed on a fresh clone, by design.** Its wordlist lives
+in `secret/`, which is gitignored, because a public file enumerating the
+domain's vocabulary would give away the domain as surely as the vocabulary
+would. Without that file the guard exits non-zero rather than reporting a clean
+tree it has not actually checked. A clone therefore reproduces the pipeline but
+not the quarantine; only the repository owner can verify it.
+
 Build a corpus (generation is stochastic; the run id names the output):
 
 ```bash

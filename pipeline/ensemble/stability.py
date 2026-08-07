@@ -174,7 +174,7 @@ def top_statement_survival(members, top=15):
                 continue
             seen.add(k)
             hits[k] += 1
-            example.setdefault(k, item["statement"])
+            example.setdefault(k, item.get("canonical_statement", item["statement"]))
     n = len(members)
     return [
         {

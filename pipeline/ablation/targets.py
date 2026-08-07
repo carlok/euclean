@@ -172,6 +172,11 @@ def main():
         + "\n"
     )
     print(f"wrote {OUT}/targets.json")
+    if budget is None:
+        # A broken measurement and a genuine null result must not look alike to
+        # a shell chain. The artifact is still written, so the failure can be
+        # inspected, but the exit status says the run is unusable.
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":

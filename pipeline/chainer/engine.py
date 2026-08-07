@@ -80,6 +80,10 @@ DEFAULTS = {
     "branch_rounds": 3,
     "case_split_depth": 2,
     "max_case_proof_size": 400,
+    # A wall-clock bound belongs in the defaults, not only in the grid budget.
+    # Without it the primary single-run command has no bound at all, and a
+    # theory whose closure behaves differently can run indefinitely.
+    "time_budget": 900,
 }
 
 
@@ -189,7 +193,58 @@ class Engine:
                         break
         return out
 
+    def _contradicts_assumptions(self, atom):
+        """Would assuming this atom make the assumption set unsatisfiable?
+
+        The randomized layout samples argument tuples with repetition, which is
+        what lets it reach shapes the fixed layout cannot. It also lets it draw
+        an atom that an axiom turns straight into an equality the disequality
+        assumptions deny. A context like `R0 p3 p2 p3` alongside `¬(p3 = p2)`
+        is inconsistent, and inconsistent premises make every theorem derived
+        under them vacuously true — valid, kernel-accepted, and empty.
+
+        Sprint 2 shipped without this check. It cost 16% of the grid corpus.
+
+        The test is deliberately syntactic and local: for each axiom of the form
+        `R(...) → x = y`, see whether this atom is an instance whose conclusion
+        is already denied. That catches the one-step case, which is the one the
+        sampler actually produces. Deeper inconsistencies are not detected and
+        this does not claim to make the context consistent.
+        """
+        denied = {
+            tuple(sorted((f["arg"]["lhs"]["name"], f["arg"]["rhs"]["name"])))
+            for _, f in self.hyps
+            if f["kind"] == "not" and f["arg"]["kind"] == "eq"
+        }
+        if not denied:
+            return None
+
+        for name in self.base_names:
+            stmt = self.theory.env[name]
+            if stmt["kind"] != "forall":
+                continue
+            premises, concl = F.premises(stmt["body"])
+            if concl["kind"] != "eq" or len(premises) != 1 or premises[0]["kind"] != "atom":
+                continue
+            sub = M.match_formula(premises[0], atom, {})
+            if sub is None:
+                continue
+            lhs, rhs = concl["lhs"], concl["rhs"]
+            if lhs["name"] not in sub or rhs["name"] not in sub:
+                continue
+            a, b = sub[lhs["name"]], sub[rhs["name"]]
+            if a["kind"] != "const" or b["kind"] != "const":
+                continue
+            if tuple(sorted((a["name"], b["name"]))) in denied:
+                return name
+        return None
+
     def _assume(self, formula):
+        if formula["kind"] == "atom":
+            culprit = self._contradicts_assumptions(formula)
+            if culprit is not None:
+                self.rejected[f"inconsistent-assumption:{culprit}"] += 1
+                return
         name = f"h{len(self.hyps)}"
         self.hyps.append((name, formula))
         self._add(formula, P.Hyp(name), "assumption")
@@ -246,6 +301,11 @@ class Engine:
         targets = [f for f in list(self.facts.values()) if rhs["name"] in F.constants(f.formula)]
         self.rng.shuffle(targets)
         for target in targets[:budget]:
+            # Rewriting recurses back into itself and is the dominant cost for
+            # any equational theory, so the round-boundary deadline is too
+            # coarse to bound it.
+            if self._past_deadline():
+                break
             if target is fact:
                 continue
             z = "z"
