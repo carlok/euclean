@@ -1,0 +1,111 @@
+"""Fail loudly if the public tree has learned what the theory is about.
+
+Two independent checks:
+
+  1. vocabulary   no term from the (secret) wordlist appears in the public tree
+  2. quarantine   nothing under pipeline/ reaches into secret/
+
+The wordlist is deliberately not stored here: a public file enumerating the
+domain's vocabulary would leak the domain as surely as the vocabulary would.
+
+Exit code 0 clean, 1 on any hit.  Run after every generation batch and before
+any report is written.
+"""
+
+import pathlib
+import re
+import sys
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+VOCAB = ROOT / "secret" / "forbidden_vocab.txt"
+
+PUBLIC_DIRS = ["theory", "pipeline", "generated", "metadata", "runs", "tools", "tests", "docs"]
+ARTIFACT_DIRS = {"theory", "generated", "metadata", "runs", "docs"}
+
+SKIP_DIRS = {".git", ".lake", "__pycache__", ".DS_Store", "secret"}
+SKIP_SUFFIXES = {".olean", ".ilean", ".trace", ".hash", ".pyc"}
+
+
+def load_vocab():
+    if not VOCAB.exists():
+        sys.exit(f"leakguard: wordlist missing at {VOCAB} — cannot verify anything")
+    hard, artifacts, section = [], [], None
+    for raw in VOCAB.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("["):
+            section = line.strip("[]")
+            continue
+        (hard if section == "hard" else artifacts).append(line.lower())
+    return hard, artifacts
+
+
+def walk(dirname):
+    base = ROOT / dirname
+    if not base.exists():
+        return
+    for path in base.rglob("*"):
+        if not path.is_file():
+            continue
+        if any(part in SKIP_DIRS for part in path.parts):
+            continue
+        if path.suffix in SKIP_SUFFIXES:
+            continue
+        yield path
+
+
+def scan_vocab(hard, artifacts):
+    hard_re = re.compile(r"\b(" + "|".join(hard) + r")\w*", re.IGNORECASE)
+    art_re = re.compile(r"\b(" + "|".join(artifacts) + r")\w*", re.IGNORECASE)
+    hits = []
+    for dirname in PUBLIC_DIRS:
+        patterns = [("hard", hard_re)]
+        if dirname in ARTIFACT_DIRS:
+            patterns.append(("artifact", art_re))
+        for path in walk(dirname):
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            for lineno, line in enumerate(text.splitlines(), 1):
+                for tier, pat in patterns:
+                    m = pat.search(line)
+                    if m:
+                        rel = path.relative_to(ROOT)
+                        hits.append((tier, f"{rel}:{lineno}", m.group(0), line.strip()[:90]))
+    return hits
+
+
+def scan_quarantine():
+    """pipeline/ must not import, open, or path-join its way into secret/."""
+    pat = re.compile(r"secret", re.IGNORECASE)
+    hits = []
+    for dirname in ("pipeline",):
+        for path in walk(dirname):
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            for lineno, line in enumerate(text.splitlines(), 1):
+                if pat.search(line):
+                    rel = path.relative_to(ROOT)
+                    hits.append(("quarantine", f"{rel}:{lineno}", "secret", line.strip()[:90]))
+    return hits
+
+
+def main():
+    hard, artifacts = load_vocab()
+    hits = scan_vocab(hard, artifacts) + scan_quarantine()
+    if not hits:
+        print("leakguard: clean")
+        return 0
+    print(f"leakguard: {len(hits)} violation(s)\n")
+    for tier, loc, term, line in hits:
+        print(f"  [{tier}] {loc}  ({term})")
+        print(f"          {line}")
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
