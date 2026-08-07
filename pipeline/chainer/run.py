@@ -41,11 +41,13 @@ def promotion_score(stmt, pf):
 
 
 def build(theory, seed=0, generations=3, cfg=None, promote_max=60,
-          existential_cap=200, log=print):
+          existential_cap=200, extra_env=None, log=print):
     axiom_keys = filters.axiom_key_set(theory)
     seen = set(axiom_keys)
     records, items_by_gen = [], []
-    extra_env = {}
+    # Seeded rules (invented concepts under ablation, say) start in the
+    # environment and promotion adds to them from there.
+    extra_env = dict(extra_env or {})
     rejected = Counter()
     traces = []
 
