@@ -39,6 +39,49 @@ def _probe_term():
     raise AssertionError("hidden wordlist has no hard-tier terms")
 
 
+def _candidate_probe_term():
+    """A term from the candidate domain's own section of the wordlist.
+
+    Guarding a new domain is not the same as guarding the old one. A section
+    can be added and be empty, or contain only terms that were pruned for
+    colliding with pipeline vocabulary, and the tree would still look clean
+    because nothing from that domain is in it yet. This finds a term the
+    candidate section actually contributes, so the check below proves the guard
+    would fire on the new domain rather than merely on the old one.
+    """
+    lines = (ROOT / "secret" / "forbidden_vocab.txt").read_text().splitlines()
+    start = next(
+        (i for i, line in enumerate(lines) if "candidate control domain" in line), None
+    )
+    assert start is not None, "the wordlist has no candidate-domain section"
+    seen_header = False
+    for line in lines[start:]:
+        s = line.strip()
+        if s.startswith("["):
+            seen_header = True
+            continue
+        if seen_header and s and not s.startswith("#"):
+            return s
+    raise AssertionError("the candidate-domain section contributes no terms")
+
+
+def test_guard_covers_the_candidate_domain_not_only_the_incumbent():
+    planted = ROOT / "generated" / "_candidate_domain_probe.lean"
+    planted.write_text(f"-- {_candidate_probe_term()}\n")
+    try:
+        r = subprocess.run(
+            [sys.executable, str(ROOT / "tools" / "leakguard.py")],
+            capture_output=True,
+            text=True,
+        )
+        assert r.returncode == 1, (
+            "a term from the candidate domain passed the guard; its vocabulary is "
+            "not actually covered"
+        )
+    finally:
+        planted.unlink()
+
+
 def test_leakguard_actually_catches_a_planted_violation():
     planted = ROOT / "generated" / "_quarantine_probe.lean"
     planted.write_text(f"-- {_probe_term()}\n")
