@@ -44,8 +44,8 @@ end of this document; none of the numbers below are typed by hand.
 **Structural importance tracks something real.** Theorems were ranked by reuse,
 downstream closure, generality, symmetry, cluster coverage and proof leverage —
 every component computed from the corpus alone. The same handful of statements
-about the 4-ary relation reach the top in 23–28 of 45 grid members, across three
-different identifier permutations. They are the reflexivity, argument-swap and
+about the 4-ary relation reach the top in a clear majority of grid members,
+across three different identifier permutations (counts in the generated table). They are the reflexivity, argument-swap and
 composition family: exactly the statements that any development of this theory
 has to establish before anything else can be built.
 
@@ -56,10 +56,10 @@ halves of that sentence are results.
 
 **Definitional enrichment measurably compresses proofs.** Feeding invented
 definitions back as a definitional extension — bridges that the kernel confirms
-are the identity, so nothing new becomes provable — cut mean proof size 56 → 32,
-median 44 → 30, and maximum depth 45 → 25, at essentially unchanged theorem
-count. The share of statements with no existential in the conclusion rose from
-95 to 229. The working hypothesis that a good concept compresses proofs is
+are the identity, so nothing new becomes provable — cut mean proof size and maximum
+proof depth substantially at essentially unchanged theorem count, and more than
+doubled the share of statements with no existential in the conclusion (counts
+in the generated table). The working hypothesis that a good concept compresses proofs is
 supported on the compression side.
 
 **Case analysis closed a hard reachability gap.** The first sprint produced 1904
@@ -68,14 +68,15 @@ calculus could introduce a disjunction and had no rule to consume one, and the
 single axiom with a disjunctive conclusion needed premises the fixed seeding
 could never produce. Any notion defined as a disjunction was therefore
 *unreachable*, not merely undiscovered. Adding case analysis to the kernel, and
-allowing repeated arguments in the sampled assumptions, produced 1446 disjunctive
-and 1978 case-analysis-derived theorems across the grid.
+allowing repeated arguments in the sampled assumptions, produced over a
+thousand disjunctive and over a thousand case-analysis-derived theorems across
+the grid.
 
 ## What does not hold up
 
 **Concept invention fails the robustness test.** The best-surviving invented
-definition appears in 14 of 45 members (31%). Six of the top ten never appear at
-all unless disequalities are assumed. Sprint 1 reported a ranked list with large
+definition appears in well under a third of members. Six of the top ten never
+appear at all unless disequalities are assumed. Sprint 1 reported a ranked list with large
 coverage and large compression, caught one artifact with a single control, and
 treated the rest as findings. The grid says that was too generous: coverage and
 compression are properties of a corpus, and the corpus is a property of the
@@ -83,7 +84,7 @@ setup.
 
 **Frequency and compression do not identify a concept.** A restatement check was
 added — which axioms every supporting proof cites — and it reshapes the ranking
-completely. Only **11 of 402** candidates in a representative member are
+completely. In a representative member only a small fraction of candidates are
 independent of any single axiom. The rest score well because one axiom is
 showing through the corpus, which neither support counts nor cluster spread can
 see.
@@ -115,7 +116,7 @@ failure raw yield was rejected for.
 from recurring proof roles would outlast concepts mined from statement syntax,
 because proof structure should depend less on the seeding. It is wrong. Role
 candidates are markedly less robust: best survival 3 of 45 members against 14 of
-45, with 222 of 227 appearing in exactly one member and never again. A role
+45, with all but a handful appearing in exactly one member and never again. A role
 candidate is lifted from a concrete proof subterm, and which subterms exist
 depends entirely on which proofs the search happened to build.
 
@@ -233,8 +234,13 @@ justified.
 | importance rank correlation, mean | 0.4077 |
 | importance rank correlation, range | -0.7714 to 1.0 |
 | member pairs compared | 590 |
+| most-repeated statements, survival | 34/45, 31/45, 29/45, 22/45 |
 | best concept survival, premise-conjunction | 14/45 |
+| candidates appearing in one member only, premise-conjunction | 132/201 |
 | best concept survival, proof-role | 3/45 |
+| candidates appearing in one member only, proof-role | 219/225 |
+| grid disjunctive statements | 1143 |
+| grid statements derived by case analysis | 1506 |
 | mean proof size, T0 to T1 | 56.07 to 32.43 |
 | max proof depth, T0 to T1 | 45 to 25 |
 | concepts separating from the ablation baseline | 2/16 |
