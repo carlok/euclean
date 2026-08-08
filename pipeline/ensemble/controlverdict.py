@@ -41,7 +41,7 @@ The control shows concept survival when **all** of these hold:
 
 1. Its best availability rate exceeds the incumbent's, with the two ranges
    across base seeds **disjoint**. Overlapping ranges are not a difference,
-   however far apart the midpoints — the rule already applied by
+   however far apart the means — the rule already applied by
    `ablation/run.py` and `admissibility/verdict.wins`.
 2. Both theories were measured at the same budget. A budget difference would
    produce exactly the same signature as a theory difference.

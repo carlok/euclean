@@ -135,7 +135,7 @@ def chance_reference(members):
     return out
 
 
-def pool_presence(ens=None, min_support=8, log=print):
+def pool_presence(ens=None, min_support=8, select=None, log=print):
     """Split survival into *finding* a concept and *ranking* it.
 
     The chance reference above is stated for a concept present in every member's
@@ -163,6 +163,11 @@ def pool_presence(ens=None, min_support=8, log=print):
         summary = json.loads((d / "summary.json").read_text())
         relmap = summary.get("relation_canonical_map")
         if not relmap:
+            continue
+        # `select` keeps replicates apart. Pooling them would inflate the member
+        # count while leaving each key reachable in at most one grid, which
+        # deflates every availability rate.
+        if select is not None and not select(summary):
             continue
         records = json.loads((d / "corpus.json").read_text())
         members.append(summary["id"])
