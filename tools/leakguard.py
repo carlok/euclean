@@ -24,10 +24,10 @@ VOCAB = ROOT / "secret" / "forbidden_vocab.txt"
 # error, not a silent skip: the failure mode this prevents is moving the theory
 # to a new directory and getting "clean" from a guard that never opened it.
 PUBLIC_DIRS = ["theory", "theories", "pipeline", "generated", "metadata", "runs",
-               "tools", "tests", "docs"]
+               "tools", "tests", "docs", "tex"]
 # Roots that legitimately may be absent (nothing has been generated yet).
-OPTIONAL_DIRS = {"theories", "generated", "metadata", "runs"}
-ARTIFACT_DIRS = {"theory", "theories", "generated", "metadata", "runs", "docs"}
+OPTIONAL_DIRS = {"theories", "generated", "metadata", "runs", "tex"}
+ARTIFACT_DIRS = {"theory", "theories", "generated", "metadata", "runs", "docs", "tex"}
 
 SKIP_DIRS = {".git", ".lake", "__pycache__", ".DS_Store", "secret"}
 SKIP_SUFFIXES = {".olean", ".ilean", ".trace", ".hash", ".pyc"}

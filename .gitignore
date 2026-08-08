@@ -28,3 +28,9 @@ docs/HANDOFF.md
 runs/
 generated/
 metadata/
+
+# The write-up. Gitignored, but still scanned by tools/leakguard.py -- the body
+# is written in the anonymized vocabulary on purpose, so that every claim has to
+# stand structurally. The interpretation belongs in an appendix outside this
+# directory, never in here.
+tex/
