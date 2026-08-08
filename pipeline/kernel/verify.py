@@ -17,6 +17,8 @@ from . import emit
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 THEORY_DIR = ROOT / "theory"
 BATCH_SIZE = 200
+# Lean's default is 200000, tuned for hand-written proofs. See write_batch.
+MAX_HEARTBEATS = 1000000
 
 
 class VerificationError(RuntimeError):
@@ -102,7 +104,19 @@ def write_batch(index, items, imports=("Theory.Anonymous",)):
     # generated binders are frequently unused; the linter has nothing useful to
     # say about machine-written terms and its output buries real errors
     lines = [f"import {m}" for m in imports]
-    lines += ["set_option linter.unusedVariables false", ""]
+    lines += ["set_option linter.unusedVariables false"]
+    # Machine-built terms are far larger than hand-written ones: the median here
+    # is around a hundred nodes but the tail reaches two hundred thousand, and a
+    # single equational rewrite chain produced a term of 2.5 MB. Lean's default
+    # heartbeat budget is tuned for human-scale proofs and gave up on that one
+    # with a deterministic `isDefEq` timeout -- not a rejection of the term, a
+    # refusal to keep working on it. Terms of comparable size verify fine, so
+    # the budget rather than the proof is what ran out.
+    #
+    # Raising it is strictly more permissive: anything that verified before
+    # still does, so no stored result changes. A genuinely unbounded term still
+    # fails, just later.
+    lines += [f"set_option maxHeartbeats {MAX_HEARTBEATS}", ""]
     for name, statement, pf in items:
         lines.append(emit.theorem(name, statement, pf))
     path = THEORY_DIR / "Theory" / f"B{index:04d}.lean"
