@@ -16,12 +16,13 @@ from pipeline.ensemble import controlverdict as CV  # noqa: E402
 SRC = "premise-conjunction"
 
 
-def _bundle(label, rates, budget="B", vacuous=0.0):
+def _bundle(label, rates, budget="B", vacuous=0.0, bound=False):
     """`rates` maps base seed -> best availability rate for one source."""
     return {
         "label": label,
         "budget": budget,
         "vacuous_fraction": vacuous,
+        "budget_bound": bound,
         "availability": {
             str(seed): {SRC: {"best_presence_rate": r}} for seed, r in rates.items()
         },
@@ -95,6 +96,46 @@ def test_an_unmeasured_condition_withholds_rather_than_passes():
     v = CV.evaluate(control, incumbent, sources=(SRC,))
     assert v["shows_survival"] is False
     assert v["unevaluated_conditions"], v["conditions"]
+
+
+def test_a_truncated_control_that_clears_the_bar_still_counts():
+    """Truncation biases availability downward, so clearing it anyway is safe.
+
+    A smaller corpus carries fewer distinct premise patterns, so fewer concepts
+    recur across members. That pushes the control's availability down, never up
+    — a control that clears the bar while truncated would only have cleared it
+    by more without the ceiling.
+    """
+    control = _bundle("candidate", {0: 0.72, 100: 0.68}, bound=True)
+    incumbent = _bundle("incumbent", {0: 0.38, 200: 0.34})
+    v = CV.evaluate(control, incumbent, sources=(SRC,))
+    assert v["shows_survival"] is True, v["first_failing_condition"] or v[
+        "unevaluated_conditions"
+    ]
+
+
+def test_a_truncated_control_that_fails_withholds_rather_than_concludes():
+    """The asymmetry that decides how much compute this comparison needs.
+
+    A downward-biased failure cannot distinguish "this theory has no recurring
+    concepts" from "this theory ran out of fact budget". Reporting it as a null
+    would be the strongest possible claim resting on the weakest evidence.
+    """
+    control = _bundle("candidate", {0: 0.20, 100: 0.22}, bound=True)
+    incumbent = _bundle("incumbent", {0: 0.38, 200: 0.34})
+    v = CV.evaluate(control, incumbent, sources=(SRC,))
+    assert v["shows_survival"] is False
+    assert any("truncated" in c for c in v["unevaluated_conditions"]), v["conditions"]
+
+
+def test_an_untruncated_failure_is_a_real_null():
+    """Without the ceiling, a failure is evidence and must not be withheld."""
+    control = _bundle("candidate", {0: 0.20, 100: 0.22}, bound=False)
+    incumbent = _bundle("incumbent", {0: 0.38, 200: 0.34})
+    v = CV.evaluate(control, incumbent, sources=(SRC,))
+    assert v["shows_survival"] is False
+    assert not any("truncated" in c for c in v["unevaluated_conditions"]), v["conditions"]
+    assert "disjoint" in v["first_failing_condition"]
 
 
 def test_selection_quality_cannot_decide_the_verdict():

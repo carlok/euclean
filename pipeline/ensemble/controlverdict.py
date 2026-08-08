@@ -138,11 +138,31 @@ def evaluate(control, incumbent, sources=("premise-conjunction", "quantified")):
     same_budget = control.get("budget") == incumbent.get("budget")
     vac = control.get("vacuous_fraction")
 
+    # A control whose search was truncated by a ceiling is biased downward: a
+    # smaller corpus carries fewer distinct premise patterns, so fewer concepts
+    # recur across members. The bias runs one way only, which is why it is not a
+    # flat blocker. Clearing the bar despite being truncated is a safe positive.
+    # Failing to clear it while truncated says nothing about the theory.
+    bound = control.get("budget_bound")
+    truncation_ok = True if (bound is False or won) else None
+
     conditions = [
         (
             "some source is higher with disjoint ranges",
             bool(won) if any(r.get("evaluated") for r in rows) else None,
             f"sources clearing the bar: {won or 'none'}",
+        ),
+        (
+            "control's search was not truncated, or cleared the bar anyway",
+            truncation_ok,
+            "not truncated"
+            if bound is False
+            else (
+                "truncated but cleared the bar, which truncation biases against"
+                if won
+                else "the control hit a fact ceiling and did not clear the bar; a "
+                "downward-biased failure is not evidence about the theory"
+            ),
         ),
         (
             "both theories measured at the same budget",
