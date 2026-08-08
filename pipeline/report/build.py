@@ -15,6 +15,8 @@ import argparse
 import json
 import pathlib
 
+from ..ensemble import grids
+
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
@@ -450,10 +452,10 @@ def key_facts(run, control, loop_run):
     ablation = load(run_dir, "ablation.json", {})
     conj = load(run_dir, "conjectures.json", {})
 
-    grid_total = sum(
-        json.loads(pathlib.Path(f).read_text()).get("kept", 0)
-        for f in glob.glob(str(ROOT / "runs" / "ens" / "*" / "summary.json"))
-    )
+    # One grid, chosen explicitly. This used to be three copies of a glob over
+    # every directory under runs/ens, which silently tripled once replicates
+    # existed. See ensemble/grids.
+    grid_total = grids.total("kept")
     imp = stability.get("importance_stability", {})
     spread = stability.get("corpus_spread", {})
     by_src = stability.get("survival_by_source", {})
@@ -486,14 +488,8 @@ def key_facts(run, control, loop_run):
             f"| candidates appearing in one member only, {src} | "
             f"{s.get('appearing_once_only')}/{s.get('candidates')} |"
         )
-    grid_disj = sum(
-        json.loads(pathlib.Path(f).read_text()).get("disjunctive", 0)
-        for f in glob.glob(str(ROOT / "runs" / "ens" / "*" / "summary.json"))
-    )
-    grid_ca = sum(
-        json.loads(pathlib.Path(f).read_text()).get("case_analysis_derived", 0)
-        for f in glob.glob(str(ROOT / "runs" / "ens" / "*" / "summary.json"))
-    )
+    grid_disj = grids.total("disjunctive")
+    grid_ca = grids.total("case_analysis_derived")
     L.append(f"| grid disjunctive statements | {grid_disj} |")
     L.append(f"| grid statements derived by case analysis | {grid_ca} |")
     if stages.get("T0") and stages.get("T1"):
