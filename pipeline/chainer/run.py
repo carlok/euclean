@@ -43,6 +43,9 @@ def promotion_score(stmt, pf):
 def build(theory, seed=0, generations=3, cfg=None, promote_max=60,
           existential_cap=200, extra_env=None, log=print):
     axiom_keys = filters.axiom_key_set(theory)
+    # atoms the axioms forbid outright; a premise instantiating one makes the
+    # statement vacuously true, kernel-verified and empty
+    refuted = filters.refuted_premises(theory)
     seen = set(axiom_keys)
     records, items_by_gen = [], []
     # Seeded rules (invented concepts under ablation, say) start in the
@@ -78,7 +81,7 @@ def build(theory, seed=0, generations=3, cfg=None, promote_max=60,
 
         fresh = []
         for stmt, pf, fact in raw:
-            keep, reason = filters.assess(stmt, axiom_keys, seen)
+            keep, reason = filters.assess(stmt, axiom_keys, seen, refuted)
             if not keep:
                 rejected[reason] += 1
                 continue
