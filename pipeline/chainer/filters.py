@@ -68,7 +68,66 @@ def irrelevant_hypothesis(stmt):
     return False
 
 
-def assess(stmt, axiom_keys, seen_keys):
+def refuted_premises(theory):
+    """Atoms the axioms forbid outright, as matchable patterns.
+
+    Only the shape `∀x⃗. ¬A(x⃗)` counts. That is the whole check: a general test
+    for whether a premise set is satisfiable is not available here, but the case
+    where a single premise instantiates a flatly forbidden atom is one
+    comparison and covers the failure actually observed.
+    """
+    out = []
+    for stmt in theory.env.values():
+        body = stmt["body"] if stmt["kind"] == "forall" else stmt
+        premises, concl = F.premises(body)
+        if premises or concl["kind"] != "not":
+            continue
+        inner = concl["arg"]
+        if inner["kind"] == "atom":
+            out.append(inner)
+    return out
+
+
+def _instantiates(pattern, atom):
+    """Does `atom` match `pattern`, treating the pattern's variables as holes?
+
+    A hole may repeat, and then the argument it stands for must repeat too:
+    `¬Lt a a` forbids `Lt x x` for any x, but says nothing about `Lt x y`.
+    """
+    if atom["kind"] != "atom" or atom["rel"] != pattern["rel"]:
+        return False
+    if len(atom["args"]) != len(pattern["args"]):
+        return False
+    bound = {}
+    for hole, arg in zip(pattern["args"], atom["args"]):
+        if hole["kind"] != "var":
+            return False
+        key = hole["name"]
+        seen = bound.setdefault(key, arg)
+        if F.key(seen) != F.key(arg):
+            return False
+    return True
+
+
+def vacuous_premise(stmt, refuted):
+    """True when a premise is an instance of something the axioms forbid.
+
+    Such a statement is true because its hypotheses can never hold. The kernel
+    accepts it, it is perfectly correct, and it says nothing. An earlier version
+    of this defect -- assumed atoms contradicting each other -- was caught at
+    seed time; this is the derived case, which nothing checked.
+    """
+    if not refuted:
+        return False
+    premises, _ = _split(stmt)
+    for p in premises:
+        core = p["arg"] if p["kind"] == "not" else p
+        if any(_instantiates(pat, core) for pat in refuted):
+            return True
+    return False
+
+
+def assess(stmt, axiom_keys, seen_keys, refuted=()):
     """Returns (keep, reason). `reason` explains the verdict either way."""
     ck = N.key(stmt)
 
@@ -77,6 +136,9 @@ def assess(stmt, axiom_keys, seen_keys):
 
     if ck in axiom_keys:
         return False, "axiom-restated"
+
+    if vacuous_premise(stmt, refuted):
+        return False, "vacuous-premise"
 
     premises, concl = _split(stmt)
     prem_keys = {F.key(p) for p in premises}
