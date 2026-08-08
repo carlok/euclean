@@ -23,9 +23,60 @@ class VerificationError(RuntimeError):
     pass
 
 
-@functools.lru_cache(maxsize=1)
-def lean_env():
-    """Build the base theory once, then capture the environment lean needs."""
+def lean_signature(theory_dir=None):
+    """Relation name -> arity, read from the Lean base module.
+
+    The point of comparison for `assert_theory_matches`. Declarations look like
+    `axiom R0 : Obj → Obj → Obj → Prop`, so the arity is the count of argument
+    sorts before `Prop`.
+    """
+    path = (theory_dir or THEORY_DIR) / "Theory" / "Anonymous.lean"
+    if not path.exists():
+        raise VerificationError(f"no base module at {path}")
+    sig = {}
+    sort = None
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line.startswith("axiom "):
+            continue
+        head, _, rhs = line[len("axiom "):].partition(":")
+        name, rhs = head.strip(), rhs.strip()
+        if rhs == "Type":
+            sort = name
+            continue
+        if sort and rhs.endswith("Prop"):
+            sig[name] = rhs.count(sort)
+    return sig
+
+
+def assert_theory_matches(theory, theory_dir=None):
+    """Refuse to check a corpus against a base module built from other axioms.
+
+    Before a second theory existed, "which axioms Python reasons about" and
+    "which axioms Lean checks against" were the same thing, because both were
+    whatever sat in `theory/`. They are now independent, and the generator
+    rewrites that directory in place. Nothing else would notice the mismatch:
+    Lean would reject every batch and the run would read as a theory that
+    derives nothing.
+    """
+    got = lean_signature(theory_dir)
+    want = dict(theory.relations)
+    if got != want:
+        raise VerificationError(
+            f"the Lean base module declares {got} but the loaded theory has {want}. "
+            f"The generator rewrites theory/ in place — regenerate for theory "
+            f"{theory.name!r} before verifying."
+        )
+
+
+@functools.lru_cache(maxsize=8)
+def lean_env(fingerprint=None):
+    """Build the base theory once, then capture the environment lean needs.
+
+    Keyed by `fingerprint` — pass `theory.spec_hash`. A zero-argument cache
+    returns the first theory's LEAN_PATH for every later one, which is only
+    harmless while there is one theory.
+    """
     # only the base module: `lake build Theory` would drag in every batch via
     # the library glob, so one bad batch would take down the whole environment
     build = subprocess.run(

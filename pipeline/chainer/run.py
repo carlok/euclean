@@ -128,12 +128,18 @@ def build(theory, seed=0, generations=3, cfg=None, promote_max=60,
     return records, items_by_gen, dict(rejected), traces
 
 
-def verify_corpus(items_by_gen, log=print):
+def verify_corpus(items_by_gen, log=print, theory=None):
     """Check every generation, chaining imports so later ones can cite earlier."""
-    return verify_corpus_with(items_by_gen, ["Theory.Anonymous"], log=log)
+    return verify_corpus_with(items_by_gen, ["Theory.Anonymous"], log=log, theory=theory)
 
 
-def verify_corpus_with(items_by_gen, base_imports, log=print):
+def verify_corpus_with(items_by_gen, base_imports, log=print, theory=None):
+    # Refuse to check a corpus against a base module built from other axioms.
+    # The generator rewrites theory/ in place, so with more than one theory
+    # around this is reachable, and the symptom would be every batch rejected —
+    # indistinguishable from a theory that derives nothing.
+    if theory is not None:
+        verify.assert_theory_matches(theory)
     verify.clear_batches()
     batch_no = 0
     imports = list(base_imports)

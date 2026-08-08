@@ -106,6 +106,53 @@ def test_importance_aggregation_is_not_pooled():
     )
 
 
+def test_lean_and_python_must_agree_on_the_axioms():
+    """The mismatch that becomes possible as soon as there are two theories.
+
+    "Which axioms Python reasons about" and "which axioms Lean checks against"
+    used to be the same thing, because both were whatever sat in `theory/`. The
+    generator rewrites that directory in place, so they are now independent, and
+    the symptom of a mismatch is every batch rejected — which reads as a theory
+    that derives nothing rather than as a configuration error.
+    """
+    from pipeline.kernel import theory as theory_mod, verify
+
+    T = theory_mod.load()
+    verify.assert_theory_matches(T)  # the in-place theory must match itself
+
+    cand = ROOT / "runs" / "admissibility" / "candidate-spec.json"
+    if not cand.exists():
+        print("  (no candidate spec; half the test skipped)")
+        return
+    other = theory_mod.Theory(json.loads(cand.read_text()))
+    try:
+        verify.assert_theory_matches(other)
+    except verify.VerificationError:
+        return
+    raise AssertionError(
+        "a theory with a different relation signature was accepted against the "
+        "base module built for another one"
+    )
+
+
+def test_the_spec_hash_ignores_relabelling_but_not_the_axioms():
+    """Re-permuting identifiers is the same theory; different axioms are not."""
+    from pipeline.kernel import theory as theory_mod
+
+    spec = json.loads((ROOT / "theory" / "spec.json").read_text())
+    base = theory_mod.spec_hash(spec)
+
+    reseeded = dict(spec, seed=(spec.get("seed") or 0) + 7)
+    assert theory_mod.spec_hash(reseeded) == base, (
+        "the hash moved on a seed change alone, so it cannot say two labellings "
+        "share an axiom set"
+    )
+
+    cand = ROOT / "runs" / "admissibility" / "candidate-spec.json"
+    if cand.exists():
+        assert theory_mod.spec_hash(json.loads(cand.read_text())) != base
+
+
 def test_a_missing_grid_is_empty_rather_than_everything():
     """Asking for a grid that is not there must not fall back to all of them."""
     assert grids.member_dirs(theory="no-such-theory") == []
