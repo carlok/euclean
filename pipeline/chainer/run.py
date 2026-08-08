@@ -56,6 +56,14 @@ def build(theory, seed=0, generations=3, cfg=None, promote_max=60,
         trace = eng.saturate()
         traces.append({"generation": g, "rounds": trace, "rules": len(eng.rules)})
 
+        # The engine's own counters. These existed but were dropped on the floor:
+        # `rejected` below collects filter reasons only, so no budget cap has
+        # ever reached a published artifact. Prefixed to keep the two kinds
+        # apart — a statement refused by a filter and a derivation never
+        # attempted because a cap was hit are different facts about a run.
+        for reason, count in eng.rejected.items():
+            rejected[f"engine:{reason}"] += count
+
         raw = []
         for fact in eng.facts.values():
             try:

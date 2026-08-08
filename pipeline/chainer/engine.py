@@ -256,6 +256,11 @@ class Engine:
         if key in self.facts:
             return None
         if len(self.facts) >= self.cfg["max_facts"]:
+            # Counted, not silent. This is the cap that binds hardest on a
+            # richer theory, and until it was recorded a member pinned at the
+            # ceiling was indistinguishable in every artifact from one that had
+            # simply run out of things to derive.
+            self.rejected["max-facts"] += 1
             return None
         fact = Fact(formula, pf, len(self.scopes), origin, self._round)
         self.facts[key] = fact
@@ -514,6 +519,7 @@ class Engine:
         derived = 0
         for _ in range(self.cfg["generative_samples"]):
             if len(self.facts) >= self.cfg["max_facts"]:
+                self.rejected["max-facts-generative"] += 1
                 break
             args = [F.Const(self._sample_const()) for _ in rule.vars]
             pf = P.Ax(rule.name, args)
