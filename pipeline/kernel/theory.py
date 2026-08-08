@@ -24,11 +24,22 @@ DEFAULT_NAME = "incumbent"
 
 
 def spec_hash(spec):
-    """A stable fingerprint of the axioms a spec defines.
+    """A fingerprint of one *labelling* of a theory.
 
-    Deliberately excludes `seed`: re-permuting identifiers produces a different
-    labelling of the same theory, and an artifact should be able to say the
-    axioms are the same while the labels differ.
+    Not invariant under relabelling, and that is the correct behaviour here even
+    though it reads like a limitation. The failure this exists to catch is
+    Python reasoning about one spec while Lean checks against another, and the
+    concrete case was a seed-0 corpus measured against a seed-1 theory. A
+    relabelling-invariant hash would call those two identical and miss it.
+
+    The `seed` field is excluded because it is metadata rather than content: two
+    specs with the same axioms under the same names are interchangeable whatever
+    number is recorded beside them. Permuting the identifiers *does* change the
+    hash, because it changes the formulas.
+
+    If a "same theory up to renaming" test is ever needed, canonicalize the
+    relation names through `canon/relations.canonical_map` first. Nothing needs
+    that today.
     """
     payload = {
         "sort": spec["sort"],
