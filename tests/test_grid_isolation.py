@@ -32,6 +32,18 @@ def _has_several_grids():
     return len(grids.present()) > 1
 
 
+def _relabel(obj, perm):
+    """Rename relation symbols throughout a spec, as the anonymizer does."""
+    if isinstance(obj, dict):
+        out = {k: _relabel(v, perm) for k, v in obj.items()}
+        if out.get("kind") == "atom" and out["rel"] in perm:
+            out["rel"] = perm[out["rel"]]
+        return out
+    if isinstance(obj, list):
+        return [_relabel(x, perm) for x in obj]
+    return obj
+
+
 def test_legacy_members_are_the_reference_grid():
     """Artifacts written before these fields existed must stay readable.
 
@@ -117,40 +129,66 @@ def test_lean_and_python_must_agree_on_the_axioms():
     """
     from pipeline.kernel import theory as theory_mod, verify
 
+    # Whichever theory is in place must match its own Lean module. The generator
+    # rewrites theory/ as it cycles, so the test must not assume which one it is.
     T = theory_mod.load()
-    verify.assert_theory_matches(T)  # the in-place theory must match itself
+    verify.assert_theory_matches(T)
 
-    cand = ROOT / "runs" / "admissibility" / "candidate-spec.json"
-    if not cand.exists():
-        print("  (no candidate spec; half the test skipped)")
-        return
-    other = theory_mod.Theory(json.loads(cand.read_text()))
+    # A signature that cannot match anything: same relations, wrong arities.
+    mismatched = theory_mod.Theory(
+        {
+            "sort": T.sort,
+            "relations": {r: a + 1 for r, a in T.relations.items()},
+            "axioms": [],
+        }
+    )
     try:
-        verify.assert_theory_matches(other)
+        verify.assert_theory_matches(mismatched)
     except verify.VerificationError:
         return
     raise AssertionError(
-        "a theory with a different relation signature was accepted against the "
-        "base module built for another one"
+        "a theory whose relation arities differ from the Lean base module was "
+        "accepted; Python and Lean can now silently disagree about the axioms"
     )
 
 
-def test_the_spec_hash_ignores_relabelling_but_not_the_axioms():
-    """Re-permuting identifiers is the same theory; different axioms are not."""
+def test_the_spec_hash_separates_labellings_not_just_theories():
+    """The hash must move when the identifiers move.
+
+    An earlier version of this test changed only the `seed` field and concluded
+    the hash was relabelling-invariant. It is not, and it must not be: the
+    failure it exists to catch is a corpus built under one identifier
+    permutation being measured against another, and a relabelling-invariant hash
+    would call those two identical.
+
+    Uses the candidate spec, which has two relations of equal arity, so a
+    permutation genuinely changes the formulas.
+    """
     from pipeline.kernel import theory as theory_mod
 
-    spec = json.loads((ROOT / "theory" / "spec.json").read_text())
+    cand = ROOT / "runs" / "admissibility" / "candidate-spec.json"
+    if not cand.exists():
+        print("  (no candidate spec; skipping)")
+        return
+    spec = json.loads(cand.read_text())
     base = theory_mod.spec_hash(spec)
 
-    reseeded = dict(spec, seed=(spec.get("seed") or 0) + 7)
-    assert theory_mod.spec_hash(reseeded) == base, (
-        "the hash moved on a seed change alone, so it cannot say two labellings "
-        "share an axiom set"
+    # metadata does not change the content
+    assert theory_mod.spec_hash(dict(spec, seed=(spec.get("seed") or 0) + 7)) == base, (
+        "the hash moved on a seed field change alone, which is metadata"
     )
 
-    cand = ROOT / "runs" / "admissibility" / "candidate-spec.json"
-    if cand.exists():
-        assert theory_mod.spec_hash(json.loads(cand.read_text())) != base
+    # relabelling does
+    perm = {"R0": "R1", "R1": "R0", "R2": "R2"}
+    moved = _relabel(json.loads(json.dumps(spec)), perm)
+    moved["relations"] = {perm[k]: v for k, v in spec["relations"].items()}
+    assert theory_mod.spec_hash(moved) != base, (
+        "the hash survived a relabelling, so it cannot detect a corpus measured "
+        "against a differently permuted theory — the bug it exists to catch"
+    )
+
+    # Deliberately not compared against theory/spec.json: the generator rewrites
+    # that file in place, so a test reading it depends on whatever ran last.
 
 
 def test_a_missing_grid_is_empty_rather_than_everything():
