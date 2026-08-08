@@ -1,8 +1,8 @@
 {
  "sort": "Obj",
  "relations": {
-  "R0": 2,
-  "R2": 3,
+  "R2": 2,
+  "R0": 3,
   "R1": 3
  },
  "axioms": [
@@ -19,7 +19,87 @@
      "kind": "imp",
      "lhs": {
       "kind": "atom",
-      "rel": "R0",
+      "rel": "R1",
+      "args": [
+       {
+        "kind": "var",
+        "name": "v0"
+       },
+       {
+        "kind": "var",
+        "name": "v1"
+       },
+       {
+        "kind": "var",
+        "name": "v2"
+       }
+      ]
+     },
+     "rhs": {
+      "kind": "atom",
+      "rel": "R2",
+      "args": [
+       {
+        "kind": "var",
+        "name": "v0"
+       },
+       {
+        "kind": "var",
+        "name": "v2"
+       }
+      ]
+     }
+    }
+   }
+  },
+  {
+   "name": "a1",
+   "formula": {
+    "kind": "forall",
+    "vars": [
+     "v0",
+     "v1"
+    ],
+    "body": {
+     "kind": "exists",
+     "vars": [
+      "v2"
+     ],
+     "body": {
+      "kind": "atom",
+      "rel": "R1",
+      "args": [
+       {
+        "kind": "var",
+        "name": "v0"
+       },
+       {
+        "kind": "var",
+        "name": "v1"
+       },
+       {
+        "kind": "var",
+        "name": "v2"
+       }
+      ]
+     }
+    }
+   }
+  },
+  {
+   "name": "a2",
+   "formula": {
+    "kind": "forall",
+    "vars": [
+     "v0",
+     "v1",
+     "v2"
+    ],
+    "body": {
+     "kind": "imp",
+     "lhs": {
+      "kind": "atom",
+      "rel": "R2",
       "args": [
        {
         "kind": "var",
@@ -35,7 +115,7 @@
       "kind": "imp",
       "lhs": {
        "kind": "atom",
-       "rel": "R0",
+       "rel": "R2",
        "args": [
         {
          "kind": "var",
@@ -49,7 +129,7 @@
       },
       "rhs": {
        "kind": "atom",
-       "rel": "R0",
+       "rel": "R2",
        "args": [
         {
          "kind": "var",
@@ -66,7 +146,7 @@
    }
   },
   {
-   "name": "a1",
+   "name": "a3",
    "formula": {
     "kind": "forall",
     "vars": [
@@ -79,7 +159,7 @@
      "kind": "imp",
      "lhs": {
       "kind": "atom",
-      "rel": "R2",
+      "rel": "R0",
       "args": [
        {
         "kind": "var",
@@ -131,21 +211,20 @@
    }
   },
   {
-   "name": "a2",
+   "name": "a4",
    "formula": {
     "kind": "forall",
     "vars": [
      "v0",
-     "v1"
+     "v1",
+     "v2",
+     "v3"
     ],
     "body": {
-     "kind": "exists",
-     "vars": [
-      "v2"
-     ],
-     "body": {
+     "kind": "imp",
+     "lhs": {
       "kind": "atom",
-      "rel": "R2",
+      "rel": "R0",
       "args": [
        {
         "kind": "var",
@@ -160,12 +239,129 @@
         "name": "v2"
        }
       ]
+     },
+     "rhs": {
+      "kind": "imp",
+      "lhs": {
+       "kind": "atom",
+       "rel": "R2",
+       "args": [
+        {
+         "kind": "var",
+         "name": "v3"
+        },
+        {
+         "kind": "var",
+         "name": "v0"
+        }
+       ]
+      },
+      "rhs": {
+       "kind": "imp",
+       "lhs": {
+        "kind": "atom",
+        "rel": "R2",
+        "args": [
+         {
+          "kind": "var",
+          "name": "v3"
+         },
+         {
+          "kind": "var",
+          "name": "v1"
+         }
+        ]
+       },
+       "rhs": {
+        "kind": "atom",
+        "rel": "R2",
+        "args": [
+         {
+          "kind": "var",
+          "name": "v3"
+         },
+         {
+          "kind": "var",
+          "name": "v2"
+         }
+        ]
+       }
+      }
      }
     }
    }
   },
   {
-   "name": "a3",
+   "name": "a5",
+   "formula": {
+    "kind": "forall",
+    "vars": [
+     "v0"
+    ],
+    "body": {
+     "kind": "atom",
+     "rel": "R2",
+     "args": [
+      {
+       "kind": "var",
+       "name": "v0"
+      },
+      {
+       "kind": "var",
+       "name": "v0"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "name": "a6",
+   "formula": {
+    "kind": "forall",
+    "vars": [
+     "v0",
+     "v1",
+     "v2"
+    ],
+    "body": {
+     "kind": "imp",
+     "lhs": {
+      "kind": "atom",
+      "rel": "R0",
+      "args": [
+       {
+        "kind": "var",
+        "name": "v0"
+       },
+       {
+        "kind": "var",
+        "name": "v1"
+       },
+       {
+        "kind": "var",
+        "name": "v2"
+       }
+      ]
+     },
+     "rhs": {
+      "kind": "atom",
+      "rel": "R2",
+      "args": [
+       {
+        "kind": "var",
+        "name": "v2"
+       },
+       {
+        "kind": "var",
+        "name": "v1"
+       }
+      ]
+     }
+    }
+   }
+  },
+  {
+   "name": "a7",
    "formula": {
     "kind": "forall",
     "vars": [
@@ -206,128 +402,11 @@
         },
         {
          "kind": "var",
-         "name": "v3"
-        }
-       ]
-      },
-      "rhs": {
-       "kind": "imp",
-       "lhs": {
-        "kind": "atom",
-        "rel": "R0",
-        "args": [
-         {
-          "kind": "var",
-          "name": "v1"
-         },
-         {
-          "kind": "var",
-          "name": "v3"
-         }
-        ]
-       },
-       "rhs": {
-        "kind": "atom",
-        "rel": "R0",
-        "args": [
-         {
-          "kind": "var",
-          "name": "v2"
-         },
-         {
-          "kind": "var",
-          "name": "v3"
-         }
-        ]
-       }
-      }
-     }
-    }
-   }
-  },
-  {
-   "name": "a4",
-   "formula": {
-    "kind": "forall",
-    "vars": [
-     "v0",
-     "v1",
-     "v2"
-    ],
-    "body": {
-     "kind": "imp",
-     "lhs": {
-      "kind": "atom",
-      "rel": "R1",
-      "args": [
-       {
-        "kind": "var",
-        "name": "v0"
-       },
-       {
-        "kind": "var",
-        "name": "v1"
-       },
-       {
-        "kind": "var",
-        "name": "v2"
-       }
-      ]
-     },
-     "rhs": {
-      "kind": "atom",
-      "rel": "R0",
-      "args": [
-       {
-        "kind": "var",
-        "name": "v0"
-       },
-       {
-        "kind": "var",
-        "name": "v2"
-       }
-      ]
-     }
-    }
-   }
-  },
-  {
-   "name": "a5",
-   "formula": {
-    "kind": "forall",
-    "vars": [
-     "v0",
-     "v1"
-    ],
-    "body": {
-     "kind": "imp",
-     "lhs": {
-      "kind": "atom",
-      "rel": "R0",
-      "args": [
-       {
-        "kind": "var",
-        "name": "v0"
-       },
-       {
-        "kind": "var",
-        "name": "v1"
-       }
-      ]
-     },
-     "rhs": {
-      "kind": "imp",
-      "lhs": {
-       "kind": "atom",
-       "rel": "R0",
-       "args": [
-        {
-         "kind": "var",
-         "name": "v1"
+         "name": "v2"
         },
         {
          "kind": "var",
-         "name": "v0"
+         "name": "v3"
         }
        ]
       },
@@ -339,7 +418,7 @@
        },
        "rhs": {
         "kind": "var",
-        "name": "v1"
+        "name": "v3"
        }
       }
      }
@@ -347,88 +426,7 @@
    }
   },
   {
-   "name": "a6",
-   "formula": {
-    "kind": "forall",
-    "vars": [
-     "v0",
-     "v1",
-     "v2",
-     "v3"
-    ],
-    "body": {
-     "kind": "imp",
-     "lhs": {
-      "kind": "atom",
-      "rel": "R2",
-      "args": [
-       {
-        "kind": "var",
-        "name": "v0"
-       },
-       {
-        "kind": "var",
-        "name": "v1"
-       },
-       {
-        "kind": "var",
-        "name": "v2"
-       }
-      ]
-     },
-     "rhs": {
-      "kind": "imp",
-      "lhs": {
-       "kind": "atom",
-       "rel": "R0",
-       "args": [
-        {
-         "kind": "var",
-         "name": "v3"
-        },
-        {
-         "kind": "var",
-         "name": "v0"
-        }
-       ]
-      },
-      "rhs": {
-       "kind": "imp",
-       "lhs": {
-        "kind": "atom",
-        "rel": "R0",
-        "args": [
-         {
-          "kind": "var",
-          "name": "v3"
-         },
-         {
-          "kind": "var",
-          "name": "v1"
-         }
-        ]
-       },
-       "rhs": {
-        "kind": "atom",
-        "rel": "R0",
-        "args": [
-         {
-          "kind": "var",
-          "name": "v3"
-         },
-         {
-          "kind": "var",
-          "name": "v2"
-         }
-        ]
-       }
-      }
-     }
-    }
-   }
-  },
-  {
-   "name": "a7",
+   "name": "a8",
    "formula": {
     "kind": "forall",
     "vars": [
@@ -442,58 +440,12 @@
      ],
      "body": {
       "kind": "atom",
-      "rel": "R1",
-      "args": [
-       {
-        "kind": "var",
-        "name": "v0"
-       },
-       {
-        "kind": "var",
-        "name": "v1"
-       },
-       {
-        "kind": "var",
-        "name": "v2"
-       }
-      ]
-     }
-    }
-   }
-  },
-  {
-   "name": "a8",
-   "formula": {
-    "kind": "forall",
-    "vars": [
-     "v0",
-     "v1",
-     "v2"
-    ],
-    "body": {
-     "kind": "imp",
-     "lhs": {
-      "kind": "atom",
-      "rel": "R1",
-      "args": [
-       {
-        "kind": "var",
-        "name": "v0"
-       },
-       {
-        "kind": "var",
-        "name": "v1"
-       },
-       {
-        "kind": "var",
-        "name": "v2"
-       }
-      ]
-     },
-     "rhs": {
-      "kind": "atom",
       "rel": "R0",
       "args": [
+       {
+        "kind": "var",
+        "name": "v0"
+       },
        {
         "kind": "var",
         "name": "v1"
@@ -541,71 +493,6 @@
       "kind": "imp",
       "lhs": {
        "kind": "atom",
-       "rel": "R2",
-       "args": [
-        {
-         "kind": "var",
-         "name": "v0"
-        },
-        {
-         "kind": "var",
-         "name": "v2"
-        },
-        {
-         "kind": "var",
-         "name": "v3"
-        }
-       ]
-      },
-      "rhs": {
-       "kind": "eq",
-       "lhs": {
-        "kind": "var",
-        "name": "v0"
-       },
-       "rhs": {
-        "kind": "var",
-        "name": "v3"
-       }
-      }
-     }
-    }
-   }
-  },
-  {
-   "name": "a10",
-   "formula": {
-    "kind": "forall",
-    "vars": [
-     "v0",
-     "v1",
-     "v2",
-     "v3"
-    ],
-    "body": {
-     "kind": "imp",
-     "lhs": {
-      "kind": "atom",
-      "rel": "R1",
-      "args": [
-       {
-        "kind": "var",
-        "name": "v0"
-       },
-       {
-        "kind": "var",
-        "name": "v1"
-       },
-       {
-        "kind": "var",
-        "name": "v2"
-       }
-      ]
-     },
-     "rhs": {
-      "kind": "imp",
-      "lhs": {
-       "kind": "atom",
        "rel": "R1",
        "args": [
         {
@@ -638,99 +525,53 @@
    }
   },
   {
+   "name": "a10",
+   "formula": {
+    "kind": "forall",
+    "vars": [
+     "v0",
+     "v1",
+     "v2"
+    ],
+    "body": {
+     "kind": "imp",
+     "lhs": {
+      "kind": "atom",
+      "rel": "R1",
+      "args": [
+       {
+        "kind": "var",
+        "name": "v0"
+       },
+       {
+        "kind": "var",
+        "name": "v1"
+       },
+       {
+        "kind": "var",
+        "name": "v2"
+       }
+      ]
+     },
+     "rhs": {
+      "kind": "atom",
+      "rel": "R2",
+      "args": [
+       {
+        "kind": "var",
+        "name": "v1"
+       },
+       {
+        "kind": "var",
+        "name": "v2"
+       }
+      ]
+     }
+    }
+   }
+  },
+  {
    "name": "a11",
-   "formula": {
-    "kind": "forall",
-    "vars": [
-     "v0",
-     "v1",
-     "v2"
-    ],
-    "body": {
-     "kind": "imp",
-     "lhs": {
-      "kind": "atom",
-      "rel": "R2",
-      "args": [
-       {
-        "kind": "var",
-        "name": "v0"
-       },
-       {
-        "kind": "var",
-        "name": "v1"
-       },
-       {
-        "kind": "var",
-        "name": "v2"
-       }
-      ]
-     },
-     "rhs": {
-      "kind": "atom",
-      "rel": "R0",
-      "args": [
-       {
-        "kind": "var",
-        "name": "v2"
-       },
-       {
-        "kind": "var",
-        "name": "v0"
-       }
-      ]
-     }
-    }
-   }
-  },
-  {
-   "name": "a12",
-   "formula": {
-    "kind": "forall",
-    "vars": [
-     "v0",
-     "v1",
-     "v2"
-    ],
-    "body": {
-     "kind": "imp",
-     "lhs": {
-      "kind": "atom",
-      "rel": "R2",
-      "args": [
-       {
-        "kind": "var",
-        "name": "v0"
-       },
-       {
-        "kind": "var",
-        "name": "v1"
-       },
-       {
-        "kind": "var",
-        "name": "v2"
-       }
-      ]
-     },
-     "rhs": {
-      "kind": "atom",
-      "rel": "R0",
-      "args": [
-       {
-        "kind": "var",
-        "name": "v2"
-       },
-       {
-        "kind": "var",
-        "name": "v1"
-       }
-      ]
-     }
-    }
-   }
-  },
-  {
-   "name": "a13",
    "formula": {
     "kind": "forall",
     "vars": [
@@ -743,7 +584,7 @@
      "kind": "imp",
      "lhs": {
       "kind": "atom",
-      "rel": "R2",
+      "rel": "R1",
       "args": [
        {
         "kind": "var",
@@ -764,6 +605,188 @@
       "lhs": {
        "kind": "atom",
        "rel": "R2",
+       "args": [
+        {
+         "kind": "var",
+         "name": "v0"
+        },
+        {
+         "kind": "var",
+         "name": "v3"
+        }
+       ]
+      },
+      "rhs": {
+       "kind": "imp",
+       "lhs": {
+        "kind": "atom",
+        "rel": "R2",
+        "args": [
+         {
+          "kind": "var",
+          "name": "v1"
+         },
+         {
+          "kind": "var",
+          "name": "v3"
+         }
+        ]
+       },
+       "rhs": {
+        "kind": "atom",
+        "rel": "R2",
+        "args": [
+         {
+          "kind": "var",
+          "name": "v2"
+         },
+         {
+          "kind": "var",
+          "name": "v3"
+         }
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "name": "a12",
+   "formula": {
+    "kind": "forall",
+    "vars": [
+     "v0",
+     "v1",
+     "v2"
+    ],
+    "body": {
+     "kind": "imp",
+     "lhs": {
+      "kind": "atom",
+      "rel": "R0",
+      "args": [
+       {
+        "kind": "var",
+        "name": "v0"
+       },
+       {
+        "kind": "var",
+        "name": "v1"
+       },
+       {
+        "kind": "var",
+        "name": "v2"
+       }
+      ]
+     },
+     "rhs": {
+      "kind": "atom",
+      "rel": "R2",
+      "args": [
+       {
+        "kind": "var",
+        "name": "v2"
+       },
+       {
+        "kind": "var",
+        "name": "v0"
+       }
+      ]
+     }
+    }
+   }
+  },
+  {
+   "name": "a13",
+   "formula": {
+    "kind": "forall",
+    "vars": [
+     "v0",
+     "v1"
+    ],
+    "body": {
+     "kind": "imp",
+     "lhs": {
+      "kind": "atom",
+      "rel": "R2",
+      "args": [
+       {
+        "kind": "var",
+        "name": "v0"
+       },
+       {
+        "kind": "var",
+        "name": "v1"
+       }
+      ]
+     },
+     "rhs": {
+      "kind": "imp",
+      "lhs": {
+       "kind": "atom",
+       "rel": "R2",
+       "args": [
+        {
+         "kind": "var",
+         "name": "v1"
+        },
+        {
+         "kind": "var",
+         "name": "v0"
+        }
+       ]
+      },
+      "rhs": {
+       "kind": "eq",
+       "lhs": {
+        "kind": "var",
+        "name": "v0"
+       },
+       "rhs": {
+        "kind": "var",
+        "name": "v1"
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "name": "a14",
+   "formula": {
+    "kind": "forall",
+    "vars": [
+     "v0",
+     "v1",
+     "v2",
+     "v3"
+    ],
+    "body": {
+     "kind": "imp",
+     "lhs": {
+      "kind": "atom",
+      "rel": "R0",
+      "args": [
+       {
+        "kind": "var",
+        "name": "v0"
+       },
+       {
+        "kind": "var",
+        "name": "v1"
+       },
+       {
+        "kind": "var",
+        "name": "v2"
+       }
+      ]
+     },
+     "rhs": {
+      "kind": "imp",
+      "lhs": {
+       "kind": "atom",
+       "rel": "R0",
        "args": [
         {
          "kind": "var",
@@ -793,31 +816,8 @@
      }
     }
    }
-  },
-  {
-   "name": "a14",
-   "formula": {
-    "kind": "forall",
-    "vars": [
-     "v0"
-    ],
-    "body": {
-     "kind": "atom",
-     "rel": "R0",
-     "args": [
-      {
-       "kind": "var",
-       "name": "v0"
-      },
-      {
-       "kind": "var",
-       "name": "v0"
-      }
-     ]
-    }
-   }
   }
  ],
- "seed": 0,
+ "seed": 1,
  "theory": "candidate"
 }
