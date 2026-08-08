@@ -275,6 +275,98 @@ def presence_summary(census):
     return out
 
 
+def multi_premise_count(records):
+    """Statements with at least two premises.
+
+    The quantity concept mining actually consumes: `invent.candidates` builds
+    conjunctions of premises and skips anything with fewer than two. Corpus size
+    is the wrong tripwire — among the stored members, one with 244 statements
+    yields no candidates while one with 84 yields eight.
+    """
+    from ..kernel import formula as F
+
+    n = 0
+    for r in records:
+        stmt = r["statement_ast"]
+        body = stmt["body"] if stmt["kind"] == "forall" else stmt
+        if len(F.premises(body)[0]) >= 2:
+            n += 1
+    return n
+
+
+def bundle(theory, ens=None, min_support=8, base_seeds=(0, 100, 200), log=print):
+    """Everything `controlverdict` needs about one theory, per replicate.
+
+    Built from stored artifacts. Each base seed is measured separately — pooling
+    them would leave every key reachable in one grid while the member count
+    multiplies, which deflates exactly the statistic the verdict reads.
+    """
+    from . import grids
+
+    ens = ens or ENS
+    avail, budgets, vacuous, total, bound = {}, set(), 0, 0, False
+
+    for seed in base_seeds:
+        census = pool_presence(
+            ens=ens,
+            min_support=min_support,
+            select=lambda s, t=theory, b=seed: grids.matches(s, t, b),
+            log=lambda *a: None,
+        )
+        if not census["members"]:
+            continue
+        avail[seed] = presence_summary(census)
+
+        for d in grids.member_dirs(ens=ens, theory=theory, base_seed=seed):
+            summary = json.loads((d / "summary.json").read_text())
+            cfg = summary.get("config", {})
+            budgets.add(
+                json.dumps({k: cfg[k] for k in sorted(cfg) if k in BUDGET_KEYS}, sort_keys=True)
+            )
+            if summary.get("rejected", {}).get("engine:max-facts"):
+                bound = True
+            total += 1
+            records = json.loads((d / "corpus.json").read_text())
+            if multi_premise_count(records) < min_support:
+                vacuous += 1
+        log(f"  {theory} base seed {seed}: {census['members']} members")
+
+    if len(budgets) > 1:
+        raise ValueError(
+            f"{theory} members ran at {len(budgets)} different budgets. A "
+            f"comparison across them would be of budgets, not theories."
+        )
+
+    return {
+        "label": theory,
+        "budget": next(iter(budgets), None),
+        "availability": {str(k): v for k, v in avail.items()},
+        "vacuous_fraction": round(vacuous / total, 3) if total else None,
+        # whether the search was truncated by the fact ceiling; truncation
+        # biases availability down, never up, so the verdict treats a truncated
+        # pass and a truncated failure differently
+        "budget_bound": bound,
+        "members": total,
+    }
+
+
+# the configuration keys that make two runs comparable
+BUDGET_KEYS = {
+    "rounds",
+    "derivations_per_rule_per_round",
+    "match_attempts",
+    "generative_samples",
+    "max_facts",
+    "max_scopes",
+    "max_case_splits",
+    "branch_rounds",
+    "time_budget",
+    "rewrites_per_equation",
+    "max_case_proof_size",
+    "case_split_depth",
+}
+
+
 def annotate(rows, reference):
     """Attach each survival row's chance reference and its excess over chance."""
     for r in rows:
@@ -345,9 +437,34 @@ def main():
     ap.add_argument("--min-support", type=int, default=8, help="must match the grid's setting")
     ap.add_argument("--no-census", action="store_true", help="skip re-mining the pools")
     ap.add_argument("--out", default=None, help="write JSON here as well as reporting")
+    ap.add_argument(
+        "--bundle",
+        default=None,
+        help="build the availability bundle for this theory and write it where "
+        "controlverdict looks for it, instead of reporting",
+    )
+    ap.add_argument("--base-seeds", type=int, nargs="+", default=[0, 100, 200])
     args = ap.parse_args()
 
     ens = pathlib.Path(args.ens) if args.ens else None
+
+    if args.bundle:
+        b = bundle(
+            args.bundle, ens=ens, min_support=args.min_support, base_seeds=args.base_seeds
+        )
+        if not b["availability"]:
+            raise SystemExit(f"no members found for theory {args.bundle!r}")
+        out = pathlib.Path(args.out or (ROOT / "runs" / "ensemble" / f"availability-{args.bundle}.json"))
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(b, indent=1) + "\n")
+        print(
+            f"  {b['label']}: {b['members']} members over {len(b['availability'])} "
+            f"replicates, vacuous {b['vacuous_fraction']}, "
+            f"{'ceiling-bound' if b['budget_bound'] else 'not ceiling-bound'}"
+        )
+        print(f"wrote {out}")
+        return
+
     members = stability.load_members(ens=ens)
     if not members:
         raise SystemExit("no members found; nothing to calibrate against")

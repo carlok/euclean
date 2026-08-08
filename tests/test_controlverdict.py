@@ -98,6 +98,42 @@ def test_an_unmeasured_condition_withholds_rather_than_passes():
     assert v["unevaluated_conditions"], v["conditions"]
 
 
+def test_a_zero_width_band_still_requires_one_member_of_separation():
+    """The incumbent's quantified band is exactly [0.356, 0.356] on real data.
+
+    All three replicates gave 16/45. Availability is a count over members, so it
+    moves in steps of 1/45; three samples landing on the same quantized value is
+    not evidence of zero variance, and reading that band literally would let a
+    single member decide the whole comparison.
+    """
+    incumbent = _bundle("incumbent", {0: 0.356, 100: 0.356, 200: 0.356})
+    incumbent["members"] = 135
+
+    just_above = _bundle("candidate", {0: 0.370, 100: 0.370})
+    just_above["members"] = 90
+    v = CV.evaluate(just_above, incumbent, sources=(SRC,))
+    assert v["sources"][0]["disjoint_and_higher"] is False, (
+        "a difference smaller than one member was counted as a separation"
+    )
+
+    clear = _bundle("candidate", {0: 0.400, 100: 0.400})
+    clear["members"] = 90
+    v = CV.evaluate(clear, incumbent, sources=(SRC,))
+    assert v["sources"][0]["disjoint_and_higher"] is True
+    assert v["sources"][0]["margin_required"] > 0
+
+
+def test_the_margin_comes_from_the_smaller_grid():
+    """So the bar is never easier than the coarser of the two instruments."""
+    incumbent = _bundle("incumbent", {0: 0.3, 100: 0.3})
+    incumbent["members"] = 40  # 20 per replicate, resolution 1/20
+    control = _bundle("candidate", {0: 0.34, 100: 0.34})
+    control["members"] = 180  # 90 per replicate, resolution 1/90
+    v = CV.evaluate(control, incumbent, sources=(SRC,))
+    assert v["sources"][0]["margin_required"] == 0.05, v["sources"][0]
+    assert v["sources"][0]["disjoint_and_higher"] is False
+
+
 def test_a_truncated_control_that_clears_the_bar_still_counts():
     """Truncation biases availability downward, so clearing it anyway is safe.
 
