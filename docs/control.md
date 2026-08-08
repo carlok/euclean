@@ -14,8 +14,8 @@ theory before any content is considered.
 
 | source | control | incumbent | disjoint and higher |
 |---|---|---|---|
-| premise-conjunction | 0.867–0.909 (2 seeds) | 0.378–0.422 (3 seeds) | yes |
-| quantified | 0.500–0.533 (2 seeds) | 0.356–0.356 (3 seeds) | yes |
+| premise-conjunction | 0.867–0.911 (2 seeds) | 0.378–0.422 (3 seeds) | yes |
+| quantified | 0.511–0.533 (2 seeds) | 0.356–0.356 (3 seeds) | yes |
 
 ## Conditions
 

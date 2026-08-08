@@ -39,7 +39,6 @@ def slim_record(r):
 
 def run_one(entry, theory, generations, min_support, top, log=print):
     out = ENS / entry["id"]
-    out.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
 
     records, items, rejected, traces = chainer_run.build(
@@ -57,6 +56,11 @@ def run_one(entry, theory, generations, min_support, top, log=print):
     for r in records:
         r["verification"] = True
 
+    # Created only once the corpus has passed the kernel. Creating it up front
+    # left an empty directory behind on every rejection, which readers then had
+    # to be careful to skip; one such directory sat in the control grid and made
+    # a 44-member grid look like 45.
+    out.mkdir(parents=True, exist_ok=True)
     (out / "corpus.json").write_text(json.dumps([slim_record(r) for r in records]) + "\n")
 
     views = views_build.build(records, theory)
