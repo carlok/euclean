@@ -127,6 +127,37 @@ def test_guard_refuses_to_report_clean_on_a_tree_it_did_not_scan():
         lg.PUBLIC_DIRS[:] = original
 
 
+def test_commit_messages_are_scanned():
+    """A channel that had no coverage for eight sprints.
+
+    Every other check walks the working tree. A commit message is not in the
+    working tree, so nothing looked at it — and unlike a file, a pushed message
+    cannot be fixed by editing it. Scanning the history against the wordlist
+    turned up a real hard-tier term in two messages.
+
+    Only the hard tier applies: messages are prose, and the artifact tier exists
+    because ordinary English words are unremarkable in prose.
+    """
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("lg", ROOT / "tools" / "leakguard.py")
+    lg = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(lg)
+
+    assert hasattr(lg, "scan_commit_messages"), "commit messages are unscanned again"
+
+    # a term nothing in this repository's history would legitimately contain
+    planted = lg.scan_commit_messages(["zzzsentinelterm"])
+    assert planted == [], "the sentinel matched something, so the scan is not selective"
+
+    # and the real wordlist must come back clean over the amendable range
+    hard, _ = lg.load_vocab()
+    assert lg.scan_commit_messages(hard) == [], (
+        "a hard-tier term is present in a commit message that has not been pushed "
+        "yet, so it can still be amended — do that before pushing"
+    )
+
+
 def test_repository_root_files_are_scanned():
     """A file dropped at the root — a handoff note, a scratch plan — used to sit
     entirely outside the guard."""
