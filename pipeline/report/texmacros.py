@@ -58,8 +58,12 @@ def collect(run="main"):
     nullmodel = _load(ens / "nullmodel.json", {})
     floor = _load(ens / "noisefloor.json", {})
     verdict = _load(ens / "controlverdict.json", {})
-    avail_inc = _load(ens / "availability-incumbent.json", {})
-    avail_cand = _load(ens / "availability-candidate.json", {})
+    # Bundles are named by theory code, and which code plays which role is
+    # recorded rather than assumed. Hardcoding either name here is what made
+    # these five macros silently go pending the moment theories were renamed.
+    roles = _load(ens / "roles.json", {})
+    avail_inc = _load(ens / f"availability-{roles.get('subject')}.json", {})
+    avail_cand = _load(ens / f"availability-{roles.get('control')}.json", {})
     diag = _load(ROOT / "runs" / run / "importance-diagnostics.json", {})
     minimisation = _load(ROOT / "runs" / run / "minimisation.json", {})
     sufficiency = _load(ROOT / "runs" / run / "sufficiency.json", {})
