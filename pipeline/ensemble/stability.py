@@ -29,7 +29,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 ENS = ROOT / "runs" / "ens"
 
 
-def load_members(pattern="index*.json"):
+def load_members(ens=None):
     """Read whatever completed.
 
     Members are discovered by walking the directories rather than by trusting an
@@ -38,7 +38,7 @@ def load_members(pattern="index*.json"):
     and an interrupted sweep is the normal case when one configuration is slow.
     """
     members = []
-    for d in sorted(ENS.iterdir()):
+    for d in sorted((ens or ENS).iterdir()):
         if d.is_dir() and (d / "summary.json").exists() and (d / "concepts.json").exists():
             summary = json.loads((d / "summary.json").read_text())
             members.append(
@@ -105,11 +105,20 @@ def survival_by_source(rows, members):
     candidates surviving once each and the other has one surviving ten times,
     their means coincide and their meanings do not.
     """
+    from . import nullmodel
+
     n = len(members)
+    # Every survival figure is reported beside what random ranking would give.
+    # A count is not evidence until you know the count chance produces, and here
+    # chance is large: members rank a fixed top-k out of a variable pool.
+    reference = nullmodel.chance_reference(members)
+
     out = {}
     for source in sorted({r["source"] for r in rows}):
         group = [r for r in rows if r["source"] == source]
         rates = sorted((r["survives"] for r in group), reverse=True)
+        ref = reference.get(source, {})
+        chance = ref.get("expected_survival")
         out[source] = {
             "candidates": len(group),
             "best_survival": f"{rates[0]}/{n}" if rates else None,
@@ -117,6 +126,14 @@ def survival_by_source(rows, members):
             "mean_survival": round(sum(rates) / len(rates), 2) if rates else None,
             "surviving_over_half": sum(1 for x in rates if x > n / 2),
             "appearing_once_only": sum(1 for x in rates if x == 1),
+            # the scale. See nullmodel: this reference assumes a concept
+            # available in every member's pool, which the census shows never
+            # happens, so it is a ceiling rather than a like-for-like null.
+            "chance_survival": chance,
+            "best_excess_over_chance": (
+                round(rates[0] - chance, 1) if rates and chance is not None else None
+            ),
+            "vacuous_members": ref.get("vacuous_members"),
         }
     return out
 
@@ -238,9 +255,11 @@ def main():
     )
     print("\nsurvival by candidate source:")
     for src, s in report["survival_by_source"].items():
+        chance = s.get("chance_survival")
+        scale = f"  chance {chance}  excess {s['best_excess_over_chance']:+}" if chance else ""
         print(f"  {src:20s} candidates {s['candidates']:4d}  best {s['best_survival']}  "
               f"mean {s['mean_survival']}  >half {s['surviving_over_half']}  "
-              f"once-only {s['appearing_once_only']}")
+              f"once-only {s['appearing_once_only']}{scale}")
     print("\nconcepts by survival:")
     for row in report["concept_survival"][:12]:
         flag = " (needs assumed distinctness)" if row["requires_assumed_distinctness"] else ""
