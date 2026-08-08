@@ -282,8 +282,14 @@ def render(v):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--control", default="candidate")
-    ap.add_argument("--incumbent", default="incumbent")
+    # Roles are read from runs/ensemble/roles.json rather than defaulted to a
+    # theory name. Which theory is subject and which is control is a choice, and
+    # baking either into an argument default is how a name became an identity.
+    from . import grids
+
+    recorded = grids.roles()
+    ap.add_argument("--control", default=recorded["control"], help="theory code")
+    ap.add_argument("--incumbent", default=recorded["subject"], help="theory code")
     args = ap.parse_args()
 
     def bundle(label):

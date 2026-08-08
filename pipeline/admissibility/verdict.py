@@ -193,8 +193,13 @@ def render(v, candidate, baseline):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--candidate", default="candidate")
-    ap.add_argument("--baseline", default="incumbent")
+    # See ensemble/controlverdict: roles come from runs/ensemble/roles.json, not
+    # from an argument default naming a theory.
+    from ..ensemble import grids
+
+    recorded = grids.roles()
+    ap.add_argument("--candidate", default=recorded["control"], help="theory code")
+    ap.add_argument("--baseline", default=recorded["subject"], help="theory code")
     ap.add_argument("--calibrated", type=int, default=None,
                     help="1 or 0: whether target calibration succeeded for the candidate")
     args = ap.parse_args()

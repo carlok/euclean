@@ -49,7 +49,7 @@ def load_members(ens=None, select=None, theory=None, base_seed=None, log=None):
     and an interrupted sweep is the normal case when one configuration is slow.
     """
     if select is None:
-        want_theory = grids.REFERENCE_THEORY if theory is None else theory
+        want_theory = grids.subject() if theory is None else theory
         want_seed = grids.REFERENCE_BASE_SEED if base_seed is None else base_seed
 
         def select(summary):
@@ -251,7 +251,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(ROOT / "runs" / "ensemble"))
     ap.add_argument("--top", type=int, default=15)
-    ap.add_argument("--theory", default=grids.REFERENCE_THEORY)
+    ap.add_argument("--theory", default=None, help="theory code; defaults to the recorded subject")
     ap.add_argument("--base-seed", type=int, default=grids.REFERENCE_BASE_SEED)
     args = ap.parse_args()
 

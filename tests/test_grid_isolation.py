@@ -50,7 +50,7 @@ def test_legacy_members_are_the_reference_grid():
     They are all incumbent, base seed 0. If the defaults changed, the stored
     grid would vanish from every selector at once.
     """
-    assert grids.identity({}) == (grids.REFERENCE_THEORY, grids.REFERENCE_BASE_SEED)
+    assert grids.identity({}) == (grids.subject(), grids.REFERENCE_BASE_SEED)
     assert grids.matches({}) is True
 
 
@@ -61,8 +61,9 @@ def test_a_replicate_is_not_the_reference_grid():
 
 def test_a_second_theory_is_not_the_reference_grid():
     """The property the whole control comparison depends on."""
-    assert grids.matches({"theory": "candidate"}) is False
-    assert grids.matches({"theory": "candidate"}, theory="candidate") is True
+    other = grids.roles()["control"]
+    assert grids.matches({"theory": other}) is False
+    assert grids.matches({"theory": other}, theory=other) is True
 
 
 def test_selecting_one_grid_excludes_the_others():
@@ -71,7 +72,7 @@ def test_selecting_one_grid_excludes_the_others():
         return
     dirs = grids.member_dirs()
     seen = {grids.identity(json.loads((d / "summary.json").read_text())) for d in dirs}
-    assert seen == {(grids.REFERENCE_THEORY, grids.REFERENCE_BASE_SEED)}, seen
+    assert seen == {(grids.subject(), grids.REFERENCE_BASE_SEED)}, seen
     assert len(dirs) < sum(grids.present().values()), (
         "the selector returned every member on disk, so it is not selecting"
     )
@@ -189,6 +190,51 @@ def test_the_spec_hash_separates_labellings_not_just_theories():
 
     # Deliberately not compared against theory/spec.json: the generator rewrites
     # that file in place, so a test reading it depends on whatever ran last.
+
+
+def test_wanting_every_theory_is_not_the_same_as_not_saying():
+    """These were the same value for one commit, and it cost the reference grid.
+
+    `theory=None` means the recorded subject; wanting every theory is a
+    different request and must say so. When both were `None`, asking for the
+    reference grid returned 90 members instead of 45 — plausible, silent, and
+    exactly the failure this module exists to prevent.
+    """
+    if not ENS.exists() or not _has_several_grids():
+        print("  (fewer than two grids on disk; skipping)")
+        return
+    one = len(grids.member_dirs())
+    every = len(grids.member_dirs(theory=grids.ANY))
+    assert one < every, (
+        f"asking for the default grid returned {one} and asking for every theory "
+        f"returned {every}; the two requests are not distinguished"
+    )
+
+
+def test_no_domain_name_reaches_the_public_tree():
+    """Theory identities are opaque codes, everywhere a reader can see them.
+
+    Names chosen to be useful to us are names that describe the domain, so a
+    directory listing of the grid would otherwise give away what the
+    anonymization protects.
+    """
+    import re
+
+    pattern = re.compile(r"^t[0-9a-f]{7}$")
+    seen = {t for t, _ in grids.present()}
+    if not seen:
+        print("  (no members; skipping)")
+        return
+    bad = sorted(t for t in seen if not pattern.match(t))
+    assert not bad, f"theory labels that are not codes: {bad}"
+
+    for name in ("roles.json",):
+        p = ROOT / "runs" / "ensemble" / name
+        if p.exists():
+            for key, value in json.loads(p.read_text()).items():
+                if key == "note":
+                    continue
+                assert pattern.match(value), f"{name}: {key} is {value!r}, not a code"
 
 
 def test_a_missing_grid_is_empty_rather_than_everything():

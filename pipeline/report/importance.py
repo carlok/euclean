@@ -186,7 +186,7 @@ def aggregate_over_grid(ens_dir=None, min_runs=2, theory=None, base_seed=None):
 
     dirs = grids.member_dirs(
         ens=ens_dir,
-        theory=grids.REFERENCE_THEORY if theory is None else theory,
+        theory=theory,
         base_seed=grids.REFERENCE_BASE_SEED if base_seed is None else base_seed,
     )
     per_run = [

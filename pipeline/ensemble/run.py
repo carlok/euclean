@@ -223,7 +223,7 @@ def main():
     # The reference grid keeps its original ids byte-identical: the incumbent at
     # base seed 0 adds nothing, so the stored grid stays readable.
     parts = [p for p in (args.tag,) if p]
-    if T.name != grids.REFERENCE_THEORY:
+    if T.name != grids.subject():
         parts.insert(0, T.name)
     if args.base_seed:
         parts.append(f"b{args.base_seed}")
