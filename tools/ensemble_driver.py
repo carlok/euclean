@@ -24,6 +24,7 @@ GENERATOR = ROOT / "secret" / "gen_theory.py"
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--theory", default="incumbent", help="which theory to generate and run")
     ap.add_argument("--theory-seeds", type=int, nargs="+", default=[0, 1, 2])
     ap.add_argument("--generations", type=int, default=3)
     ap.add_argument("--repeats", type=int, default=1)
@@ -48,7 +49,9 @@ def main():
     for seed in args.theory_seeds:
         print(f"\n=== theory seed {seed} ===")
         subprocess.run(
-            [sys.executable, str(GENERATOR), "--seed", str(seed)], cwd=ROOT, check=True
+            [sys.executable, str(GENERATOR), "--seed", str(seed), "--theory", args.theory],
+            cwd=ROOT,
+            check=True,
         )
         subprocess.run(
             [
@@ -75,7 +78,18 @@ def main():
 
     # leave the tree on a known theory so later single runs are reproducible
     subprocess.run(
-        [sys.executable, str(GENERATOR), "--seed", str(args.restore_seed)], cwd=ROOT, check=True
+        [
+            sys.executable,
+            str(GENERATOR),
+            "--seed",
+            str(args.restore_seed),
+            # always restore the reference theory, not whichever one just ran:
+            # later single runs and the test suite assume it is in place
+            "--theory",
+            "incumbent",
+        ],
+        cwd=ROOT,
+        check=True,
     )
     print(f"\nrestored theory seed {args.restore_seed}")
 

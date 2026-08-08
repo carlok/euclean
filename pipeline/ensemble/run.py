@@ -22,7 +22,7 @@ from ..canon import normalize as N
 from ..kernel import emit, theory as theory_mod
 from ..report import importance as importance_mod
 from ..views import build as views_build
-from . import config as cfg_mod
+from . import config as cfg_mod, grids
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 ENS = ROOT / "runs" / "ens"
@@ -50,7 +50,7 @@ def run_one(entry, theory, generations, min_support, top, log=print):
         promote_max=cfg_mod.PROMOTE_MAX,
         log=lambda *a: None,
     )
-    failures = chainer_run.verify_corpus(items, log=lambda *a: None)
+    failures = chainer_run.verify_corpus(items, log=lambda *a: None, theory=theory)
     if failures:
         log(f"  {entry['id']}: KERNEL REJECTED {len(failures)} batch(es)")
         return None
@@ -163,6 +163,12 @@ def run_one(entry, theory, generations, min_support, top, log=print):
         # reuses chainer seeds 0..14 and no survival figure has an error bar.
         "base_seed": entry.get("base_seed", 0),
         "theory_seed": theory.seed,
+        # Which axioms this member was built from. The theory name separates
+        # grids; the hash is what catches a spec swap, since the generator
+        # rewrites theory/spec.json in place and the name alone would not
+        # notice a changed axiom set.
+        "theory": theory.name,
+        "spec_hash": theory.spec_hash,
         "relation_canonical_map": relmap,
         "kept": len(records),
         "distinct_statements": len(set(r["normalized_statement"] for r in records)),
@@ -206,17 +212,27 @@ def main():
     if args.limit:
         entries = entries[: args.limit]
 
-    # A replicate must not overwrite the grid it is a replicate of. Base seed 0
-    # keeps the original ids byte-identical so the stored grid stays readable.
-    suffix = args.tag
+    # A replicate, or a second theory, must not overwrite the grid it is being
+    # compared against. `runs/ens/<id>/` is created with exist_ok=True and runs/
+    # is gitignored, so a collision overwrites with no error and no recovery.
+    #
+    # The reference grid keeps its original ids byte-identical: the incumbent at
+    # base seed 0 adds nothing, so the stored grid stays readable.
+    parts = [p for p in (args.tag,) if p]
+    if T.name != grids.REFERENCE_THEORY:
+        parts.insert(0, T.name)
     if args.base_seed:
-        suffix = f"{suffix}-b{args.base_seed}" if suffix else f"b{args.base_seed}"
+        parts.append(f"b{args.base_seed}")
+    suffix = "-".join(parts)
     for e in entries:
         e["base_seed"] = args.base_seed
         if suffix:
             e["id"] = f"{e['id']}-{suffix}"
 
-    print(f"theory seed {T.seed}: {len(entries)} configurations, {args.generations} generations")
+    print(
+        f"theory {T.name} (spec {T.spec_hash}) seed {T.seed}: {len(entries)} "
+        f"configurations, {args.generations} generations"
+    )
     summaries = []
     for entry in entries:
         s = run_one(entry, T, args.generations, args.min_support, args.top)
