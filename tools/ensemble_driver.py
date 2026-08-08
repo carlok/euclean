@@ -29,6 +29,14 @@ def main():
     ap.add_argument("--repeats", type=int, default=1)
     ap.add_argument("--min-support", type=int, default=8)
     ap.add_argument("--restore-seed", type=int, default=0)
+    ap.add_argument(
+        "--base-seed",
+        type=int,
+        default=0,
+        help="shifts every chainer seed. Running the same grid at two base seeds "
+        "gives the replicate a noise floor needs; theory seeds do not, since "
+        "they only relabel the same theory.",
+    )
     args = ap.parse_args()
 
     if not GENERATOR.exists():
@@ -56,6 +64,8 @@ def main():
                 str(args.repeats),
                 "--min-support",
                 str(args.min_support),
+                "--base-seed",
+                str(args.base_seed),
                 "--tag",
                 f"t{seed}",
             ],

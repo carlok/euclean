@@ -157,6 +157,11 @@ def run_one(entry, theory, generations, min_support, top, log=print):
         "id": entry["id"],
         "config": entry["config"],
         "chainer_seed": entry["chainer_seed"],
+        # The theory seed is a relabelling of the same theory, so it tests
+        # permutation invariance. The base seed shifts the chainer seeds and is
+        # what makes a run a genuine replicate — without it, every "repeat"
+        # reuses chainer seeds 0..14 and no survival figure has an error bar.
+        "base_seed": entry.get("base_seed", 0),
         "theory_seed": theory.seed,
         "relation_canonical_map": relmap,
         "kept": len(records),
@@ -187,15 +192,29 @@ def main():
     ap.add_argument("--top", type=int, default=10)
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--tag", default="", help="suffix distinguishing this theory's members")
+    ap.add_argument(
+        "--base-seed",
+        type=int,
+        default=0,
+        help="shifts every chainer seed; a different value is a replicate of the "
+        "whole grid, which is what a noise floor needs",
+    )
     args = ap.parse_args()
 
     T = theory_mod.load()
-    entries = cfg_mod.grid(repeats=args.repeats)
+    entries = cfg_mod.grid(repeats=args.repeats, base_seed=args.base_seed)
     if args.limit:
         entries = entries[: args.limit]
-    if args.tag:
-        for e in entries:
-            e["id"] = f"{e['id']}-{args.tag}"
+
+    # A replicate must not overwrite the grid it is a replicate of. Base seed 0
+    # keeps the original ids byte-identical so the stored grid stays readable.
+    suffix = args.tag
+    if args.base_seed:
+        suffix = f"{suffix}-b{args.base_seed}" if suffix else f"b{args.base_seed}"
+    for e in entries:
+        e["base_seed"] = args.base_seed
+        if suffix:
+            e["id"] = f"{e['id']}-{suffix}"
 
     print(f"theory seed {T.seed}: {len(entries)} configurations, {args.generations} generations")
     summaries = []
@@ -204,7 +223,7 @@ def main():
         if s:
             summaries.append(s)
 
-    index = ENS / f"index{('-' + args.tag) if args.tag else ''}.json"
+    index = ENS / f"index{('-' + suffix) if suffix else ''}.json"
     index.write_text(json.dumps(summaries, indent=1) + "\n")
     print(f"{len(summaries)}/{len(entries)} members completed; wrote {index}")
 
