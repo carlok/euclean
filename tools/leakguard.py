@@ -30,7 +30,11 @@ OPTIONAL_DIRS = {"theories", "generated", "metadata", "runs", "tex"}
 ARTIFACT_DIRS = {"theory", "theories", "generated", "metadata", "runs", "docs", "tex"}
 
 SKIP_DIRS = {".git", ".lake", "__pycache__", ".DS_Store", "secret"}
-SKIP_SUFFIXES = {".olean", ".ilean", ".trace", ".hash", ".pyc"}
+SKIP_SUFFIXES = {".olean", ".ilean", ".trace", ".hash", ".pyc",
+                 # typesetter output: regenerated from the source next to it,
+                 # and its own logs quote package chatter that trips the
+                 # artifact tier without ever being authored by anyone
+                 ".log", ".aux", ".out", ".toc", ".pdf", ".gz", ".fls", ".fdb_latexmk"}
 
 
 def load_vocab():
