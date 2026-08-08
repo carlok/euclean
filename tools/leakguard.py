@@ -14,6 +14,7 @@ any report is written.
 
 import pathlib
 import re
+import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -124,10 +125,52 @@ def scan_quarantine():
     return hits
 
 
+def scan_commit_messages(hard):
+    """Commit messages are part of the repository and were never checked.
+
+    Everything above walks the working tree. A commit message is not in the
+    working tree, so for eight sprints this channel had no coverage at all —
+    and unlike a file, a pushed message cannot be fixed by editing it.
+
+    Only the hard tier applies. Messages are prose, and the artifact tier exists
+    precisely because ordinary English words are unremarkable in prose.
+
+    Scanned range: commits not yet on the upstream branch, because those are the
+    ones that can still be amended. Anything already pushed needs a decision
+    from the repository owner rather than a failing check on every later run.
+    """
+    hard_re = re.compile(r"\b(" + "|".join(hard) + r")\w*", re.IGNORECASE)
+    try:
+        upstream = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+            cwd=ROOT, capture_output=True, text=True, check=False,
+        ).stdout.strip()
+        rng = f"{upstream}..HEAD" if upstream else "HEAD"
+        out = subprocess.run(
+            ["git", "log", "--format=%h%x00%B%x00%x00", rng],
+            cwd=ROOT, capture_output=True, text=True, check=False,
+        ).stdout
+    except OSError:
+        return []
+
+    hits = []
+    for entry in out.split("\x00\x00"):
+        if "\x00" not in entry:
+            continue
+        sha, body = entry.split("\x00", 1)
+        for lineno, line in enumerate(body.splitlines(), 1):
+            m = hard_re.search(line)
+            if m:
+                hits.append(
+                    ("commit-msg", f"{sha.strip()}:{lineno}", m.group(0), line.strip()[:90])
+                )
+    return hits
+
+
 def main():
     assert_roots()
     hard, artifacts = load_vocab()
-    hits = scan_vocab(hard, artifacts) + scan_quarantine()
+    hits = scan_vocab(hard, artifacts) + scan_quarantine() + scan_commit_messages(hard)
     if not hits:
         print("leakguard: clean")
         return 0
