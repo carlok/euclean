@@ -79,14 +79,24 @@ REQUIRED_REPLICATES = 2
 MAX_VACUOUS_FRACTION = 1 / 3
 
 
-def ranges_disjoint(a, b):
-    """Higher-is-better comparison with no overlap allowed.
+def ranges_disjoint(a, b, margin=0.0):
+    """Higher-is-better comparison with no overlap, plus a resolution margin.
 
-    Returns True only when `a` is entirely above `b`. Same rule as
-    `admissibility/verdict.wins`, restated here so this module can be read on
-    its own.
+    Returns True only when `a` sits entirely above `b`, by at least `margin`.
+    Same rule as `admissibility/verdict.wins`, with one addition forced by the
+    measured data.
+
+    Availability is a count of members divided by the member count, so it is
+    quantized in steps of `1/n`. On the incumbent, all three replicates give
+    *exactly* 16/45 for the quantified source — a range of width zero. Taken at
+    face value that is a bar anything above 0.356 clears, which would let a
+    single member's difference decide the comparison. Three samples landing on
+    the same quantized value is not evidence of zero variance.
+
+    The margin is one member's worth. Two availability figures closer than that
+    are not distinguishable by this instrument at all.
     """
-    return a["min"] > b["max"]
+    return a["min"] > b["max"] + margin
 
 
 def availability_range(grids_by_seed, source):
@@ -107,6 +117,15 @@ def evaluate(control, incumbent, sources=("premise-conjunction", "quantified")):
     Each bundle carries `availability` (base seed -> presence_summary), `budget`,
     `vacuous_fraction` and `label`.
     """
+    # One member's worth of availability, the finest difference the statistic
+    # can express. Taken from the smaller grid so the margin is never optimistic.
+    per_grid = [
+        b["members"] / max(len(b["availability"]), 1)
+        for b in (control, incumbent)
+        if b.get("members") and b.get("availability")
+    ]
+    margin = 1.0 / min(per_grid) if per_grid else 0.0
+
     rows, won = [], []
     for source in sources:
         c = availability_range(control["availability"], source)
@@ -114,7 +133,7 @@ def evaluate(control, incumbent, sources=("premise-conjunction", "quantified")):
         if c is None or i is None:
             rows.append({"source": source, "evaluated": False})
             continue
-        beats = ranges_disjoint(c, i)
+        beats = ranges_disjoint(c, i, margin)
         won.append(source) if beats else None
         rows.append(
             {
@@ -124,6 +143,7 @@ def evaluate(control, incumbent, sources=("premise-conjunction", "quantified")):
                 "incumbent": [i["min"], i["max"]],
                 "control_replicates": c["n"],
                 "incumbent_replicates": i["n"],
+                "margin_required": round(margin, 4),
                 "disjoint_and_higher": beats,
             }
         )
