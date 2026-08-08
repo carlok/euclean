@@ -275,6 +275,71 @@ def presence_summary(census):
     return out
 
 
+def statement_reference(members, top=15):
+    """The same treatment for the *positive* result.
+
+    `top_statement_survival` counts how many members' top-`top` a statement
+    reached, and that count has been quoted with no scale for as long as the
+    concept counts were. The hole is easier to miss here because the number
+    looks good.
+
+    Unlike concepts, every statement in a member's corpus is available to be
+    ranked, so the pool is the corpus and no re-mining is needed. A statement
+    present in member `m` reaches its top-`top` with probability `top/|corpus|`
+    under random ranking, and chance is summed only over the members whose
+    corpus actually contains it.
+    """
+    pools, ranked_keys, present = {}, {}, {}
+    for m in members:
+        mid = m["summary"]["id"]
+        items = m["importance"]
+        keys = {i["canonical_key"] for i in items if "canonical_key" in i}
+        if not keys:
+            continue
+        pools[mid] = len(keys)
+        seen = []
+        for i in items:
+            k = i.get("canonical_key")
+            if k is not None and k not in seen:
+                seen.append(k)
+            if len(seen) >= top:
+                break
+        ranked_keys[mid] = set(seen)
+        for k in keys:
+            present.setdefault(k, set()).add(mid)
+
+    rows = []
+    for key, where in present.items():
+        observed = sum(1 for mid in where if key in ranked_keys.get(mid, ()))
+        chance = sum(min(top, pools[mid]) / pools[mid] for mid in where)
+        rows.append(
+            {
+                "canonical_key": key,
+                "in_corpus_of": len(where),
+                "reached_top": observed,
+                "chance": round(chance, 2),
+                "excess_over_chance": round(observed - chance, 2),
+            }
+        )
+    rows.sort(key=lambda r: -r["reached_top"])
+
+    n = len(pools)
+    universal = [r for r in rows if r["in_corpus_of"] == n]
+    return {
+        "members": n,
+        "top": top,
+        "mean_pool": round(sum(pools.values()) / n, 1) if n else 0,
+        "distinct_keys": len(rows),
+        "keys_in_every_corpus": len(universal),
+        # the reference that applies to a statement available everywhere
+        "chance_if_universal": round(sum(min(top, p) / p for p in pools.values()), 2),
+        "best_observed": rows[0]["reached_top"] if rows else 0,
+        "best_excess": max((r["excess_over_chance"] for r in rows), default=0),
+        "keys_beating_chance": sum(1 for r in rows if r["excess_over_chance"] > 0),
+        "rows": rows[:40],
+    }
+
+
 def multi_premise_count(records):
     """Statements with at least two premises.
 
@@ -478,7 +543,19 @@ def main():
 
     print(report(reference, best))
 
-    payload = {"reference": reference, "best_observed": best}
+    stmt = statement_reference(members)
+    print("")
+    print("Statement survival against the same yardstick")
+    print("")
+    print(f"  best observed          {stmt['best_observed']}/{stmt['members']}")
+    print(f"  chance if universal    {stmt['chance_if_universal']}/{stmt['members']}")
+    print(f"  best excess            {stmt['best_excess']:+}")
+    print(f"  keys in every corpus   {stmt['keys_in_every_corpus']}")
+    print("")
+    print("  Unlike concepts, the reference here is reachable: statements do appear")
+    print("  in every corpus, and the best of them beats chance by a wide margin.")
+
+    payload = {"reference": reference, "best_observed": best, "statements": stmt}
     if not args.no_census:
         census = pool_presence(ens=ens, min_support=args.min_support, log=lambda *a: None)
         summary = presence_summary(census)
