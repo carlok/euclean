@@ -1,4 +1,4 @@
-"""Recurring shapes inside proof terms.
+"""Recurring forms inside proof terms.
 
 A proof's *head* is the axiom or lemma being applied once the modus-ponens
 spine is stripped. Recording which heads feed which gives a rule-level view of
@@ -53,28 +53,28 @@ def applications(pf):
 
 
 def motif_counts(records):
-    edges, shapes = Counter(), Counter()
+    edges, forms = Counter(), Counter()
     per_theorem = {}
     for r in records:
         apps = applications(r["proof_ast"])
         local = set()
         for h, args in apps:
-            shapes[(h, len(args))] += 1
+            forms[(h, len(args))] += 1
             for a in args:
                 edges[(a, h)] += 1
                 local.add((a, h))
         per_theorem[r["id"]] = local
-    return edges, shapes, per_theorem
+    return edges, forms, per_theorem
 
 
 def top_motifs(records, limit=25):
-    edges, shapes, per_theorem = motif_counts(records)
+    edges, forms, per_theorem = motif_counts(records)
     support = Counter()
     for _, local in per_theorem.items():
         for e in local:
             support[e] += 1
     return {
-        "application_shapes": [
+        "application_forms": [
             {"rule": h, "arity": n, "count": c} for (h, n), c in shapes.most_common(limit)
         ],
         "feeds": [

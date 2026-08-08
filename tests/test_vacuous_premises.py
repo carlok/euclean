@@ -1,7 +1,8 @@
 """Gate for statements that are true because their hypotheses cannot hold.
 
 Found by reading a corpus back through the interpretation rather than by any
-check in the pipeline. A theory with an irreflexivity axiom produced
+check in the pipeline. A theory one of whose axioms forbids a relation from
+holding of an element and itself produced
 
     Lt b1 b0 → Lt b1 b1 → ∃ b2, Lt b2 b0
 
@@ -32,8 +33,8 @@ def _theory(axioms, relations):
     return theory_mod.Theory({"sort": "Obj", "relations": relations, "axioms": axioms})
 
 
-def _irreflexive():
-    """A theory whose single axiom forbids `Lt a a`."""
+def _forbids_repeat():
+    """A theory whose single axiom forbids a relation holding of a repeated arg."""
     return _theory(
         [
             {
@@ -48,13 +49,13 @@ def _irreflexive():
 
 
 def test_a_forbidden_atom_is_recognised():
-    pats = filters.refuted_premises(_irreflexive())
+    pats = filters.refuted_premises(_forbids_repeat())
     assert len(pats) == 1 and pats[0]["rel"] == "Lt", pats
 
 
 def test_a_premise_the_axioms_forbid_is_rejected():
     """The exact shape that was found in a real corpus."""
-    refuted = filters.refuted_premises(_irreflexive())
+    refuted = filters.refuted_premises(_forbids_repeat())
     stmt = F.Forall(
         ["x", "y"],
         F.Imp(
@@ -76,7 +77,7 @@ def test_a_satisfiable_premise_survives():
     Rejecting on the relation alone would discard most of the corpus, so the
     hole-matching has to respect repetition.
     """
-    refuted = filters.refuted_premises(_irreflexive())
+    refuted = filters.refuted_premises(_forbids_repeat())
     stmt = F.Forall(
         ["x", "y"],
         F.Imp(

@@ -90,9 +90,33 @@ def root_files():
             yield path
 
 
+def _term_re(terms):
+    """Match a term at an identifier boundary, not merely a word boundary.
+
+    `\\b` treats `_` as a word character, so a term embedded in a snake_case
+    identifier slipped through entirely: a listed term carrying a leading
+    underscore or an `is_` prefix was invisible to this guard.
+
+    That is stated in the abstract on purpose. An earlier draft of this very
+    docstring spelled out two real listed terms to illustrate the bug, and
+    tripped the check it documents. Identifiers are exactly where domain
+    vocabulary hides in code, so that was the wrong boundary for the job.
+
+    The lookbehind excludes letters and digits but permits `_`, which catches
+    the identifier cases while still refusing the false positives that made
+    `\\b` attractive: `line` is on the list and `pipeline` must not fire,
+    because there the term is preceded by a letter.
+
+    Residual hole, recorded rather than papered over: a term glued directly to
+    a letter, with no separator and no case change, is still missed. Closing
+    that needs tokenizing identifiers rather than scanning lines.
+    """
+    return re.compile(r"(?<![a-z0-9])(" + "|".join(terms) + r")\w*", re.IGNORECASE)
+
+
 def scan_vocab(hard, artifacts):
-    hard_re = re.compile(r"\b(" + "|".join(hard) + r")\w*", re.IGNORECASE)
-    art_re = re.compile(r"\b(" + "|".join(artifacts) + r")\w*", re.IGNORECASE)
+    hard_re = _term_re(hard)
+    art_re = _term_re(artifacts)
     hits = []
     for dirname in PUBLIC_DIRS + ["<root>"]:
         patterns = [("hard", hard_re)]
@@ -143,7 +167,7 @@ def scan_commit_messages(hard):
     ones that can still be amended. Anything already pushed needs a decision
     from the repository owner rather than a failing check on every later run.
     """
-    hard_re = re.compile(r"\b(" + "|".join(hard) + r")\w*", re.IGNORECASE)
+    hard_re = _term_re(hard)
     try:
         upstream = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
