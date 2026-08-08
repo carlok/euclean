@@ -41,7 +41,7 @@ def cluster_schemas(records, assignments, method, min_size=4, max_members=60):
         if len(member_ids) < min_size:
             continue
 
-        # Anti-unifying across different quantifier shapes yields a bare hole:
+        # Anti-unifying across different quantifier forms yields a bare hole:
         # the very first structural mismatch generalizes the whole formula. So
         # split each cluster by coarse shape first and schematize the largest
         # stratum. The stratum size is reported, since a schema over 8 of 56

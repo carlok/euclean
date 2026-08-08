@@ -194,7 +194,7 @@ def score(cand, records_by_id, assignments, method="kmeans_numeric"):
         "arity": len(params),
         "body_size": s,
         "per_use_saving": per_use_saving,
-        "description_length_reduction": dl_reduction,
+        "description_size_reduction": dl_reduction,
         "clusters_unified": len(clusters),
         "distinct_axiom_profiles": len(proofs),
         # Axioms every single user's proof cites. A pattern that recurs widely
@@ -282,7 +282,7 @@ def rank(scored, top=12):
     """
     return sorted(
         scored,
-        key=lambda c: (-c["scores"]["description_length_reduction"],
+        key=lambda c: (-c["scores"]["description_size_reduction"],
                        -c["scores"]["clusters_unified"]),
     )[:top]
 
@@ -297,7 +297,7 @@ def summarize(ranked):
             f"{c['name']}({', '.join(c['params'])}) := {A.render(c['body'])}\n"
             f"    covers {s['theorems_covered']} theorems, "
             f"{s['clusters_unified']} clusters, "
-            f"DL reduction {s['description_length_reduction']}"
+            f"DL reduction {s['description_size_reduction']}"
         )
     return "\n".join(lines)
 

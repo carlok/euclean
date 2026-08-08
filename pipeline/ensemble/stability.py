@@ -91,7 +91,7 @@ def concept_survival(members):
                     "layout": m["summary"]["config"]["atom_layout"],
                     "params": m["summary"]["config"]["params"],
                     "covers": c["scores"].get("theorems_covered", 0),
-                    "dl": c["scores"].get("description_length_reduction"),
+                    "dl": c["scores"].get("description_size_reduction"),
                     "source": c.get("source", "premise-conjunction"),
                     "render": c,
                 }

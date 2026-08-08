@@ -317,7 +317,7 @@ def build(run, control, loop_run):
         s = c["scores"]
         always = s.get("axioms_in_every_user") or []
         w(f"| `{c['name']}` | {s['arity']} | {s['theorems_covered']} | "
-          f"{s['clusters_unified']} | {s['description_length_reduction']} | "
+          f"{s['clusters_unified']} | {s['description_size_reduction']} | "
           f"{', '.join(always) if always else '—'} |")
     w("")
     w("The last column is the restatement check, and it changes how the rest of")
