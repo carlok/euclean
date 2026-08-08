@@ -54,7 +54,29 @@ def by_base_seed(ens=None, seeds=None):
     return grids
 
 
-def spread(grids):
+def availability(ens=None, seeds=(), min_support=8):
+    """Best availability rate per source, per replicate.
+
+    This is the statistic `controlverdict` decides on, so it needs a floor of
+    its own — the survival statistics below do not stand in for it. Pools are
+    re-mined per replicate, never pooled across them.
+    """
+    from . import nullmodel
+
+    out = {}
+    for seed in seeds:
+        census = nullmodel.pool_presence(
+            ens=ens,
+            min_support=min_support,
+            select=lambda s, want=seed: s.get("base_seed", 0) == want,
+            log=lambda *a: None,
+        )
+        if census["members"]:
+            out[seed] = nullmodel.presence_summary(census)
+    return out
+
+
+def spread(grids, avail=None):
     """Per source, the range of each survival statistic across replicates."""
     from . import stability
 
@@ -63,8 +85,24 @@ def spread(grids):
         rows = stability.concept_survival(members)
         per_seed[seed] = stability.survival_by_source(rows, members)
 
+    # availability is carried in the same shape so one table covers both
+    if avail:
+        for seed, summary in avail.items():
+            if seed not in per_seed:
+                continue
+            for source, s in summary.items():
+                per_seed[seed].setdefault(source, {})["best_availability_rate"] = s[
+                    "best_presence_rate"
+                ]
+
     sources = sorted({s for v in per_seed.values() for s in v})
-    fields = ("best_rate", "mean_survival", "surviving_over_half", "appearing_once_only")
+    fields = (
+        "best_availability_rate",
+        "best_rate",
+        "mean_survival",
+        "surviving_over_half",
+        "appearing_once_only",
+    )
 
     out = {}
     for source in sources:
@@ -92,7 +130,7 @@ def separated(a, b):
     """Do two measured ranges fail to overlap?
 
     The same rule `admissibility/verdict.wins` applies: overlapping ranges are
-    not a difference, however far apart their midpoints sit.
+    not a difference, however far apart their means sit.
     """
     return a["min"] > b["max"] or b["min"] > a["max"]
 
@@ -132,13 +170,12 @@ def main():
     ap.add_argument("--out", default=str(ROOT / "runs" / "ensemble" / "noisefloor.json"))
     args = ap.parse_args()
 
-    grids = by_base_seed(
-        ens=pathlib.Path(args.ens) if args.ens else None, seeds=args.base_seeds
-    )
+    ens = pathlib.Path(args.ens) if args.ens else None
+    grids = by_base_seed(ens=ens, seeds=args.base_seeds)
     if not grids:
         raise SystemExit("no grids found for those base seeds")
 
-    result = spread(grids)
+    result = spread(grids, avail=availability(ens=ens, seeds=sorted(grids)))
     print(report(result))
 
     p = pathlib.Path(args.out)
