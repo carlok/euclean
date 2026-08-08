@@ -29,8 +29,13 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 ENS = ROOT / "runs" / "ens"
 
 
-def load_members(ens=None):
+def load_members(ens=None, select=None):
     """Read whatever completed.
+
+    `select` is a predicate on the summary, used to keep grids apart. Replicates
+    at different base seeds live side by side in the same directory, and pooling
+    them would silently change `n` and therefore the denominator of every
+    survival rate.
 
     Members are discovered by walking the directories rather than by trusting an
     index file. An index is only written when a whole theory seed finishes, so
@@ -41,6 +46,8 @@ def load_members(ens=None):
     for d in sorted((ens or ENS).iterdir()):
         if d.is_dir() and (d / "summary.json").exists() and (d / "concepts.json").exists():
             summary = json.loads((d / "summary.json").read_text())
+            if select is not None and not select(summary):
+                continue
             members.append(
                 {
                     "summary": summary,
@@ -49,6 +56,18 @@ def load_members(ens=None):
                     "clusters": json.loads((d / "clusters.json").read_text()),
                 }
             )
+
+    # Refuse to pool replicates rather than quietly averaging over them. Two
+    # base seeds in one directory means `n` doubles while any given key can
+    # appear in at most half the members, so every survival rate halves and the
+    # drop reads as a real loss of breadth.
+    seeds = {m["summary"].get("base_seed", 0) for m in members}
+    if select is None and len(seeds) > 1:
+        raise ValueError(
+            f"members from base seeds {sorted(seeds)} are present in {ens or ENS}. "
+            f"These are replicates of one another and pooling them halves every "
+            f"survival rate. Pass select= to choose one."
+        )
     return members
 
 
