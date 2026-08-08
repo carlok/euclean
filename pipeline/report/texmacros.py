@@ -69,6 +69,12 @@ def collect(run="main"):
     sufficiency = _load(ROOT / "runs" / run / "sufficiency.json", {})
     footprints = _load(ROOT / "runs" / run / "footprints.json", {})
 
+    # Every theory that has been through the admissibility gate. Read from the
+    # probe artifacts rather than counted by hand, because the count is a claim.
+    probes = {}
+    for q in sorted((ROOT / "runs" / "admissibility").glob("probe-*.json")):
+        probes[q.stem[len("probe-"):]] = json.loads(q.read_text())
+
     by_src = stability.get("survival_by_source", {})
     imp = stability.get("importance_stability", {})
     spread = stability.get("corpus_spread", {})
@@ -140,6 +146,24 @@ def collect(run="main"):
         "euFloorOnceOnlyRole": _dig(
             floor, "by_source", "proof-role", "appearing_once_only", "range"
         ),
+        # the admissibility gate, across every theory tried
+        "euTheoriesProbed": len(probes) or PENDING,
+        "euRejectedDistinctMax": (
+            max(
+                (
+                    d["axes"]["distinct_statements"]["max"]
+                    for k, d in probes.items()
+                    if k not in ("incumbent", "candidate") and "axes" in d
+                ),
+                default=PENDING,
+            )
+            if probes
+            else PENDING
+        ),
+        "euSubjectDistinctMin": _dig(probes, "incumbent", "axes", "distinct_statements", "min"),
+        "euSubjectDistinctMax": _dig(probes, "incumbent", "axes", "distinct_statements", "max"),
+        "euControlDistinctMin": _dig(probes, "candidate", "axes", "distinct_statements", "min"),
+        "euControlDistinctMax": _dig(probes, "candidate", "axes", "distinct_statements", "max"),
         # the control
         "euIncumbentBound": _fmt_bool(avail_inc.get("budget_bound", PENDING)),
         "euCandidateBound": _fmt_bool(avail_cand.get("budget_bound", PENDING)),
