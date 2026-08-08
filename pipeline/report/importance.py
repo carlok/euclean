@@ -150,14 +150,27 @@ def aggregate(per_run, min_runs=2):
     return rows
 
 
-def aggregate_over_grid(ens_dir=None, min_runs=2):
-    """Collect every grid member's ranking and aggregate it."""
-    ens_dir = ens_dir or (ROOT / "runs" / "ens")
-    per_run = []
-    for d in sorted(ens_dir.iterdir()) if ens_dir.exists() else []:
-        p = d / "importance.json"
-        if p.is_file():
-            per_run.append(json.loads(p.read_text()))
+def aggregate_over_grid(ens_dir=None, min_runs=2, theory=None, base_seed=None):
+    """Collect one grid's rankings and aggregate them.
+
+    One grid, not every directory found. `coverage` here is `len(items) /
+    n_runs`, so pooling replicates or two theories inflates the denominator
+    while leaving each key reachable in only one of them — every coverage figure
+    drops, and the drop reads as a real loss of breadth rather than as a
+    counting error.
+    """
+    from ..ensemble import grids
+
+    dirs = grids.member_dirs(
+        ens=ens_dir,
+        theory=grids.REFERENCE_THEORY if theory is None else theory,
+        base_seed=grids.REFERENCE_BASE_SEED if base_seed is None else base_seed,
+    )
+    per_run = [
+        json.loads((d / "importance.json").read_text())
+        for d in dirs
+        if (d / "importance.json").is_file()
+    ]
     return per_run, aggregate(per_run, min_runs=min_runs)
 
 

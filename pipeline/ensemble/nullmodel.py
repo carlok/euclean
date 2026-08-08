@@ -151,8 +151,14 @@ def pool_presence(ens=None, min_support=8, select=None, log=print):
     """
     from ..canon import relations as R
     from ..concepts import invent, quantified
+    from . import grids
 
     ens = ens or ENS
+    if select is None:
+        # One grid. Pooling replicates leaves each key reachable in only one of
+        # them while the member count multiplies, so every availability rate
+        # falls by the number of grids present.
+        select = grids.matches
     present, ranked, members = {}, {}, []
     # (member, source) -> probability a candidate in that pool gets ranked
     odds = {}

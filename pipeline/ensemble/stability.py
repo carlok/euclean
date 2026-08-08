@@ -23,30 +23,50 @@ import json
 import pathlib
 from collections import Counter, defaultdict
 
+from . import grids
+
 from scipy.stats import spearmanr
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 ENS = ROOT / "runs" / "ens"
 
 
-def load_members(ens=None, select=None):
-    """Read whatever completed.
+def load_members(ens=None, select=None, theory=None, base_seed=None, log=None):
+    """Read one grid's completed members.
 
-    `select` is a predicate on the summary, used to keep grids apart. Replicates
-    at different base seeds live side by side in the same directory, and pooling
-    them would silently change `n` and therefore the denominator of every
-    survival rate.
+    One grid, never several pooled. `concept_survival` divides by the member
+    count, so mixing replicates or two theories shrinks every survival rate by
+    the number of grids present, and the shrinkage reads as a genuine loss of
+    breadth. Defaults to the reference grid — the one every published figure was
+    computed from — so those figures stay reproducible.
+
+    `select` overrides with an arbitrary predicate, used by the noise floor,
+    which partitions the members itself.
 
     Members are discovered by walking the directories rather than by trusting an
     index file. An index is only written when a whole theory seed finishes, so
     keying off it would silently discard every member of an interrupted sweep —
     and an interrupted sweep is the normal case when one configuration is slow.
     """
+    if select is None:
+        want_theory = grids.REFERENCE_THEORY if theory is None else theory
+        want_seed = grids.REFERENCE_BASE_SEED if base_seed is None else base_seed
+
+        def select(summary):
+            return grids.matches(summary, want_theory, want_seed)
+
+        # Say what else was on disk. Picking a default silently is how a reader
+        # ends up assuming the chosen grid was all there was.
+        if log:
+            other = {k: v for k, v in grids.present(ens).items() if k != (want_theory, want_seed)}
+            if other:
+                log(f"  using grid {(want_theory, want_seed)}; also present: {other}")
+
     members = []
     for d in sorted((ens or ENS).iterdir()):
         if d.is_dir() and (d / "summary.json").exists() and (d / "concepts.json").exists():
             summary = json.loads((d / "summary.json").read_text())
-            if select is not None and not select(summary):
+            if not select(summary):
                 continue
             members.append(
                 {
@@ -56,18 +76,6 @@ def load_members(ens=None, select=None):
                     "clusters": json.loads((d / "clusters.json").read_text()),
                 }
             )
-
-    # Refuse to pool replicates rather than quietly averaging over them. Two
-    # base seeds in one directory means `n` doubles while any given key can
-    # appear in at most half the members, so every survival rate halves and the
-    # drop reads as a real loss of breadth.
-    seeds = {m["summary"].get("base_seed", 0) for m in members}
-    if select is None and len(seeds) > 1:
-        raise ValueError(
-            f"members from base seeds {sorted(seeds)} are present in {ens or ENS}. "
-            f"These are replicates of one another and pooling them halves every "
-            f"survival rate. Pass select= to choose one."
-        )
     return members
 
 
@@ -243,15 +251,22 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(ROOT / "runs" / "ensemble"))
     ap.add_argument("--top", type=int, default=15)
+    ap.add_argument("--theory", default=grids.REFERENCE_THEORY)
+    ap.add_argument("--base-seed", type=int, default=grids.REFERENCE_BASE_SEED)
     args = ap.parse_args()
 
-    members = load_members()
+    members = load_members(theory=args.theory, base_seed=args.base_seed, log=print)
     if not members:
-        raise SystemExit("no ensemble members found under runs/ens/")
+        raise SystemExit(
+            f"no members for theory={args.theory} base_seed={args.base_seed}. "
+            f"On disk: {grids.present()}"
+        )
 
     _survival = concept_survival(members)
     report = {
         "members": len(members),
+        "theory": args.theory,
+        "base_seed": args.base_seed,
         "member_ids": [m["summary"]["id"] for m in members],
         "theory_seeds": sorted({m["summary"]["theory_seed"] for m in members}),
         "corpus_spread": corpus_spread(members),
