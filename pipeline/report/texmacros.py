@@ -82,6 +82,11 @@ def collect(run="main"):
         # correlation is the compromised one
         "euTopStatementSurvival": _dig(stability, "top_statement_survival", 0, "survives"),
         "euTopStatementOf": _dig(stability, "top_statement_survival", 0, "of"),
+        # the positive result, finally against the same yardstick as the negative
+        "euStatementChance": _dig(nullmodel, "statements", "chance_if_universal"),
+        "euStatementExcess": _dig(nullmodel, "statements", "best_excess"),
+        "euStatementsInEveryCorpus": _dig(nullmodel, "statements", "keys_in_every_corpus"),
+        "euStatementPool": _dig(nullmodel, "statements", "mean_pool"),
         # what the importance measure turns out to be
         "euRedundantPairs": diag.get("redundant_pairs", PENDING),
         "euNotOrderPreserving": (
