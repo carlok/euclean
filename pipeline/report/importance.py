@@ -27,13 +27,36 @@ COMPONENTS = (
 
 
 def _rank_normalize(values):
-    """Percentile rank in [0,1]. Robust to the wildly different scales the
-    components come on, and to the long tails most of them have."""
-    order = sorted(range(len(values)), key=lambda i: values[i])
-    out = [0.0] * len(values)
-    n = max(len(values) - 1, 1)
-    for pos, i in enumerate(order):
-        out[i] = pos / n
+    """Percentile rank in [0,1], with ties sharing a rank.
+
+    Robust to the wildly different scales the components come on, and to the
+    long tails most of them have.
+
+    Ties get the *average* of the positions they span. The earlier version
+    handed each tied value its own position, and since the sort is stable those
+    positions followed the input order — which here is the order statements were
+    derived in. That mattered enormously rather than marginally: on the
+    reference corpus 1832 of 1904 statements share a single value on four of the
+    six components, so for most of the corpus those components were recording
+    where a statement appeared rather than anything about it. A percentile rank
+    must be order-preserving, and this one now is; `report/diagnostics.py`
+    checks that it stayed that way.
+    """
+    n = len(values)
+    if n == 0:
+        return []
+    order = sorted(range(n), key=lambda i: values[i])
+    out = [0.0] * n
+    denom = max(n - 1, 1)
+    i = 0
+    while i < n:
+        j = i
+        while j + 1 < n and values[order[j + 1]] == values[order[i]]:
+            j += 1
+        shared = (i + j) / 2 / denom
+        for k in range(i, j + 1):
+            out[order[k]] = shared
+        i = j + 1
     return out
 
 
