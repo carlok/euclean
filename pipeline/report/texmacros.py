@@ -60,6 +60,7 @@ def collect(run="main"):
     verdict = _load(ens / "controlverdict.json", {})
     avail_inc = _load(ens / "availability-incumbent.json", {})
     avail_cand = _load(ens / "availability-candidate.json", {})
+    diag = _load(ROOT / "runs" / run / "importance-diagnostics.json", {})
     minimisation = _load(ROOT / "runs" / run / "minimisation.json", {})
     sufficiency = _load(ROOT / "runs" / run / "sufficiency.json", {})
     footprints = _load(ROOT / "runs" / run / "footprints.json", {})
@@ -77,7 +78,28 @@ def collect(run="main"):
         "euGridTheory": stability.get("theory", PENDING),
         "euCorpusMin": _dig(spread, "kept", "min"),
         "euCorpusMax": _dig(spread, "kept", "max"),
-        # the positive result
+        # the positive result: top-statement survival is the claim, the rank
+        # correlation is the compromised one
+        "euTopStatementSurvival": _dig(stability, "top_statement_survival", 0, "survives"),
+        "euTopStatementOf": _dig(stability, "top_statement_survival", 0, "of"),
+        # what the importance measure turns out to be
+        "euRedundantPairs": diag.get("redundant_pairs", PENDING),
+        "euNotOrderPreserving": (
+            len(diag["components_not_order_preserving"])
+            if diag.get("components_not_order_preserving") is not None
+            else PENDING
+        ),
+        "euVsInDegree": _dig(diag, "vs_in_degree", "spearman"),
+        "euTopTenOverlap": _dig(diag, "vs_in_degree", "top10_overlap"),
+        "euStabilityWindow": _dig(diag, "stability_window", "window"),
+        "euStabilitySignal": _dig(diag, "stability_window", "with_signal"),
+        "euStabilityTiebreak": _dig(diag, "stability_window", "by_tiebreak"),
+        "euLargestTieGroup": (
+            max((t["largest_tie_group"] for t in diag["ties"]), default=PENDING)
+            if diag.get("ties")
+            else PENDING
+        ),
+        "euTopTenWithSignal": _dig(diag, "top_of_ranking", "10"),
         "euImportanceRho": imp.get("mean_spearman", PENDING),
         "euImportanceRhoMin": imp.get("min_spearman", PENDING),
         "euImportanceRhoMax": imp.get("max_spearman", PENDING),
