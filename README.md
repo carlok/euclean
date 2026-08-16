@@ -8,6 +8,10 @@ relations `R0` and `R1`, ten axioms `a0`–`a9`. No component of the pipeline is
 told what any of it denotes. The interpretation exists, but it is held outside
 this tree and is consulted only after discovery has been frozen.
 
+A second, richer theory is measured alongside it as a control. Theories are
+identified in every artifact by an opaque code rather than by name, since a name
+useful to a reader would describe its domain.
+
 **Start here:** [`docs/EXECUTIVE_SUMMARY.md`](docs/EXECUTIVE_SUMMARY.md) — what
 was found, what did not survive scrutiny, and why the interpretation stays
 unpublished for now. Full structural detail in
@@ -34,11 +38,20 @@ accepts it; a claim that has not compiled is a conjecture, and is filed as one.
 | `pipeline/canon/` | normalization |
 | `pipeline/views/` | multi-view theorem representations |
 | `pipeline/cluster/` `patterns/` `concepts/` | unsupervised structure extraction |
-| `pipeline/ensemble/` | the configuration grid and the stability analysis over it |
+| `pipeline/ensemble/` | the configuration grid, chance baselines, noise floor, grid selection |
+| `pipeline/report/` | importance ranking, diagnostics, generated report figures |
+| `pipeline/reverse/` | axiom footprints, subset minimisation, sufficiency checks |
+| `pipeline/backward/` | goal-directed search, complementing forward saturation |
+| `pipeline/admissibility/` | the gate a candidate theory must pass before it is measured |
+| `pipeline/ablation/` `conjecture/` | held-out targets, proposers and bounded attempts |
 | `pipeline/loop/` | the rediscovery driver |
 | `generated/` `metadata/` | per-theorem source and provenance |
 | `runs/` | per-run seeds, metrics, reports |
 | `tools/leakguard.py` | fails the build if the public tree acquires semantics |
+| `tools/ensemble_driver.py` | drives the grid across identifier permutations |
+| `tools/rescore_importance.py` | rebuilds stored rankings after a scoring change |
+| `tools/migrate_theory_names.py` | renames stored artifacts when theory identity changes |
+| `tools/deanonymize.py` | reads findings back through the interpretation; writes only to `secret/` |
 
 ## Setup
 

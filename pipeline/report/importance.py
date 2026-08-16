@@ -113,10 +113,14 @@ def aggregate(per_run, min_runs=2):
 
     `score` ranks within a single corpus, so the published ordering was always
     one sample. Measured across grid members, the mean rank correlation of that
-    ordering is 0.41 with a range spanning strongly negative to 1.0 — the
-    measure identifies a stable *set* and does not stably order it. Averaging
-    the per-run percentile ranks, which are already comparable across runs by
-    construction, orders the set once instead of once per draw.
+    ordering was measured at 0.41, spanning strongly negative to 1.0 — until a
+    tie-break defect in `_rank_normalize` was found to be suppressing it; see
+    that function. The live figure is in `runs/ensemble/stability.json` and is
+    not repeated here, because a number written into a docstring is a number
+    that goes stale.
+
+    Averaging the per-run percentile ranks, which are already comparable across
+    runs by construction, orders the set once instead of once per draw.
 
     Statements are keyed canonically, so members built on re-permuted
     identifiers contribute to the same entry.
