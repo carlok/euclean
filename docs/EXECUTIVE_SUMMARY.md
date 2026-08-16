@@ -229,7 +229,7 @@ condition.
 | Robust finding | structural importance identifies a stable central set |
 | Negative finding | concept invention fails on compression, acceleration and candidate source alike |
 | Open | both planned next tests are currently unmeasurable; see above |
-| Interpretation | evaluated privately; not published, and should not be yet |
+| Interpretation | evaluated privately; not published, and not to be published |
 
 ## Generated counts
 
