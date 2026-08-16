@@ -14,7 +14,7 @@ useful to a reader would describe its domain.
 
 **Start here:** [`docs/EXECUTIVE_SUMMARY.md`](docs/EXECUTIVE_SUMMARY.md) — what
 was found, what did not survive scrutiny, and why the interpretation stays
-unpublished for now. Full structural detail in
+unpublished. Full structural detail in
 [`docs/structural-findings.md`](docs/structural-findings.md).
 
 ## Pipeline
@@ -41,7 +41,7 @@ accepts it; a claim that has not compiled is a conjecture, and is filed as one.
 | `pipeline/ensemble/` | the configuration grid, chance baselines, noise floor, grid selection |
 | `pipeline/report/` | importance ranking, diagnostics, generated report figures |
 | `pipeline/reverse/` | axiom footprints, subset minimisation, sufficiency checks |
-| `pipeline/backward/` | goal-directed search, complementing forward saturation |
+| `pipeline/backward/` | goal-directed search, run alongside forward saturation |
 | `pipeline/admissibility/` | the gate a candidate theory must pass before it is measured |
 | `pipeline/ablation/` `conjecture/` | held-out targets, proposers and bounded attempts |
 | `pipeline/loop/` | the rediscovery driver |
