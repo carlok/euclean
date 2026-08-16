@@ -52,7 +52,7 @@ has to establish before anything else can be built.
 The ranking *within* that set is also stable, but only after a defect was
 fixed. The percentile normalization broke ties by position in the corpus, which
 is derivation order, and most of the corpus is tied on most components. That
-suppressed agreement between members and produced the strongly negative
+suppressed agreement across members and produced the strongly negative
 correlations previously reported here. With ties sharing a rank the mean
 correlation is what the generated table says, and the range no longer reaches
 far below zero.
@@ -180,7 +180,7 @@ re-run and the numbers were not. They are generated now.
 
 ## Should the interpretation be published?
 
-Not yet, and the reasoning is worth stating because the question will recur.
+No. The reasoning is worth stating because the question will recur.
 
 De-anonymization has *already happened* privately: the interpretation was
 restored after discovery was frozen, every major cluster and definition was
@@ -199,22 +199,26 @@ It should not, for three reasons.
 2. **It is irreversible and it costs future experiments.** Seed permutation,
    re-runs, the representation-invariance test, and any later run where a
    language model is allowed to inspect the formulas all depend on the public
-   tree being semantics-free. Publishing the mapping ends that permanently, for
-   a repository that is already private and whose findings do not require it.
+   tree being semantics-free. Publishing the mapping ends that permanently, and
+   nothing reported here requires it. If this tree is ever made public the
+   argument only gets stronger: a semantics-free public tree is the whole asset,
+   and it can be spent once.
 3. **The guard is doing real work.** It has caught a domain term in a function
    name, in a test file, and in a draft report. Each time the cheap fix was to
    rename rather than relax the rule. Relaxing it wholesale just where
    the results are least impressive would be the wrong trade.
 
-The condition for revisiting: a finding in the top grade bands — a consequence
-that is genuinely non-obvious, or a structure that survives the grid *and* the
-restatement check *and* an independent re-derivation. The original wording
-required a second encoding; that condition is withdrawn, because the second
-encoding is not measurable by this pipeline for the reasons given above, and a
-publication condition nobody can evaluate is not a condition. At that stage the
-interpretation
-becomes part of the claim rather than a convenience, and publishing it is
-justified.
+This is the decision, not a deferral. What would reopen it is stated so that it
+is falsifiable rather than a matter of taste: a finding in the top grade bands —
+a consequence that is genuinely non-obvious, or a structure surviving the grid
+*and* the restatement check *and* an independent re-derivation. At that stage
+the interpretation becomes part of the claim rather than a convenience, and
+publishing it would be justified.
+
+The original wording also required a second encoding. That condition is
+withdrawn, because a second encoding is not measurable by this pipeline for the
+reasons given above, and a publication condition nobody can evaluate is not a
+condition.
 
 ## Where things stand
 
