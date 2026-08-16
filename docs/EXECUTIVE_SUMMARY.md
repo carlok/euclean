@@ -49,10 +49,17 @@ across three different identifier permutations (counts in the generated table). 
 composition family: exactly the statements that any development of this theory
 has to establish before anything else can be built.
 
-The ranking *within* that set is not stable: the mean rank correlation across
-member pairs is well below 0.5 and its range spans from strongly negative to
-1.0. The measure identifies a robust set; it does not robustly order it. Both
-halves of that sentence are results.
+The ranking *within* that set is also stable, but only after a defect was
+fixed. The percentile normalization broke ties by position in the corpus, which
+is derivation order, and most of the corpus is tied on most components. That
+suppressed agreement between members and produced the strongly negative
+correlations previously reported here. With ties sharing a rank the mean
+correlation is what the generated table says, and the range no longer reaches
+far below zero.
+
+The earlier version of this paragraph reported the measure as identifying a
+robust set without robustly ordering it. The first half stands. The second was
+an artifact.
 
 **Definitional enrichment measurably compresses proofs.** Feeding invented
 definitions back as a definitional extension — bridges that the kernel confirms
@@ -231,10 +238,10 @@ justified.
 | grid theorems, kernel-verified | 17154 |
 | grid corpus size, min-max | 84-912 |
 | grid existential-free, min-max | 9-512 |
-| importance rank correlation, mean | 0.4 |
-| importance rank correlation, range | -0.7714 to 1.0 |
-| member pairs compared | 588 |
-| most-repeated statements, survival | 34/45, 31/45, 29/45, 22/45 |
+| importance rank correlation, mean | 0.8065 |
+| importance rank correlation, range | -0.0269 to 1.0 |
+| member pairs compared | 986 |
+| most-repeated statements, survival | 38/45, 35/45, 35/45, 31/45 |
 | best concept survival, premise-conjunction | 15/45 |
 | candidates appearing in one member only, premise-conjunction | 131/200 |
 | best concept survival, proof-role | 3/45 |
