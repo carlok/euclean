@@ -200,9 +200,27 @@ It should not, for three reasons.
    re-runs, the representation-invariance test, and any later run where a
    language model is allowed to inspect the formulas all depend on the public
    tree being semantics-free. Publishing the mapping ends that permanently, and
-   nothing reported here requires it. If this tree is ever made public the
+   nothing reported here requires it. Now that this tree is public the
    argument only gets stronger: a semantics-free public tree is the whole asset,
    and it can be spent once.
+
+   A limit on this argument, recorded now that the tree is public. The axioms
+   ship with it, since an experiment nobody can re-run is not reproducible, and
+   the sort, the two arities and the ten formulas are together enough for a
+   reader who knows the area to name the domain quickly. A language model asked
+   to inspect the formulas may recognize it unprompted. "Semantics-free"
+   therefore means the tree states no interpretation, not that the
+   interpretation is hard to guess.
+
+   What survives is the property the results actually rest on: no stage of the
+   pipeline had access to the mapping. That is a fact about how the run
+   happened, and recognizing the domain afterwards does not change it. What does
+   not survive is any future test whose validity needs the *reader* -- human or
+   model -- to be ignorant of the domain. The language-model inspection named
+   above is exactly that case, and for these axioms it should be treated as
+   spent rather than pending. Such a test needs a theory that has not been
+   published, which argues for varying the theory rather than for withholding
+   this tree.
 3. **The guard is doing real work.** It has caught a domain term in a function
    name, in a test file, and in a draft report. Each time the cheap fix was to
    rename rather than relax the rule. Relaxing it wholesale just where
