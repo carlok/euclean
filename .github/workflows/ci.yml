@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - name: Install Lean (toolchain pinned by theory/lean-toolchain)
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - run: uv sync --frozen
+      # These tests need secret/ (never committed, by design) or runs/ensemble/roles.json
+      # (a generated run artifact), so they can only run in a local working copy.
+      - run: >-
+          uv run --frozen pytest -q
+          --deselect tests/test_grid_isolation.py::test_legacy_members_are_the_reference_grid
+          --deselect tests/test_grid_isolation.py::test_a_replicate_is_not_the_reference_grid
+          --deselect tests/test_grid_isolation.py::test_a_second_theory_is_not_the_reference_grid
+          --deselect tests/test_quarantine.py::test_leakguard_is_clean
+          --deselect tests/test_quarantine.py::test_guard_covers_the_candidate_domain_not_only_the_incumbent
+          --deselect tests/test_quarantine.py::test_leakguard_actually_catches_a_planted_violation
+          --deselect tests/test_quarantine.py::test_commit_messages_are_scanned
+          --deselect tests/test_quarantine.py::test_repository_root_files_are_scanned
