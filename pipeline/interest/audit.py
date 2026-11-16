@@ -1,0 +1,544 @@
+"""Apply the pre-registered decision rules and generate `docs/interest-audit.md`.
+
+Every number in the report comes from `runs/<run>/interest/results.json` and
+`runs/<run>/summary.json`; nothing is typed. The decision rules are the ones in
+`docs/interest-prereg.md`, transcribed here.
+
+The metric audited is Patel et al.'s, arXiv:2609.28603 (2026).
+
+Usage:  python -m pipeline.interest.audit
+"""
+
+import hashlib
+import json
+
+from ..ensemble import noisefloor
+from ..kernel.theory import ROOT
+from . import loop, metric, plan, stats
+
+OUT = ROOT / "docs" / "interest-audit.md"
+PAPER_RHO = 0.756
+
+
+def sha256(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def load_all():
+    res, summ = {}, {}
+    for run in plan.corpora():
+        d = ROOT / "runs" / run
+        res[run] = json.loads((d / "interest" / "results.json").read_text())
+        summ[run] = json.loads((d / "summary.json").read_text())
+    return res, summ
+
+
+def runs_of(theory, perm):
+    from .corpora import run_id
+
+    return [run_id(theory, perm, s) for s in plan.SEEDS]
+
+
+def rng_(vals):
+    return {"min": min(vals), "max": max(vals)}
+
+
+# --- decision rules -------------------------------------------------------
+
+
+def h1_perm(res, theory, perm, ranking):
+    """Enriched when the replicate range of CI lower bounds clears the replicate
+    range of base rates: noisefloor's rule that overlapping ranges are no
+    difference, applied to the bootstrap interval."""
+    rs = [res[r] for r in runs_of(theory, perm)]
+    lo = [x["H1"]["rankings"][ranking]["ci"][0] for x in rs]
+    hi = [x["H1"]["rankings"][ranking]["ci"][1] for x in rs]
+    base = [x["H1"]["base_rate"] for x in rs]
+    a, b = {"min": min(lo), "max": max(hi)}, rng_(base)
+    if noisefloor.separated(a, b) and a["min"] > b["max"]:
+        return "enriched"
+    if noisefloor.separated(a, b) and a["max"] < b["min"]:
+        return "depleted"
+    return "neither"
+
+
+def h1_verdict(res, theory, ranking):
+    per = [h1_perm(res, theory, p, ranking) for p in plan.PERMS]
+    fails = sum(1 for x in per if x == "enriched") >= 2
+    return ("FAILS: ranks restatements highly" if fails else "does not fail"), per
+
+
+def h2_perm(res, theory, perm, filt):
+    ok = []
+    for r in runs_of(theory, perm):
+        f = res[r]["H2"]["filters"][filt]
+        rec = f["recall_R1R2"]
+        j = f["youden_R1R2"]
+        if rec[0] is None:
+            return "undefined"
+        ok.append(rec[1] > 0.5 and j[1] > 0)
+    return "catches" if all(ok) else "misses"
+
+
+def h2_verdict(res, theory, filt):
+    per = [h2_perm(res, theory, p, filt) for p in plan.PERMS]
+    if sum(1 for x in per if x == "catches") >= 2:
+        return "catches restatements", per
+    if sum(1 for x in per if x == "undefined") >= 2:
+        return "undefined (no R1/R2 statements)", per
+    return "does not catch restatements", per
+
+
+def h3_class(rho, lo, hi):
+    if rho is None:
+        return "undefined"
+    if lo <= PAPER_RHO <= hi or lo > PAPER_RHO:
+        return "replicates"
+    if lo > 0:
+        return "weaker positive"
+    return "no positive correlation"
+
+
+def h3_verdict(res, theory, variant):
+    per = []
+    for p in plan.PERMS:
+        cls = {h3_class(*res[r]["H3"][variant]["I0_U0"][:3]) for r in runs_of(theory, p)}
+        per.append(cls.pop() if len(cls) == 1 else "mixed")
+    for c in ("replicates", "weaker positive", "no positive correlation"):
+        if sum(1 for x in per if x == c) >= 2:
+            return c, per
+    return "inconclusive", per
+
+
+def h4_perm(res, theory, perm, policy):
+    states = []
+    for r in runs_of(theory, perm):
+        h = res[r]["H4"]
+        share = h["policies"][policy]["share"]
+        if share is None:
+            states.append("nothing promoted")
+            continue
+        states.append("above" if share > h["random"]["p97.5"] else "below" if share < h["random"]["p2.5"] else "within")
+    return states[0] if len(set(states)) == 1 else "mixed"
+
+
+def h4_verdict(res, theory, policy):
+    per = [h4_perm(res, theory, p, policy) for p in plan.PERMS]
+    if sum(1 for x in per if x == "above") >= 2:
+        return "promotes restatements above chance", per
+    if sum(1 for x in per if x == "below") >= 2:
+        return "promotes restatements below chance", per
+    return "indistinguishable from random promotion", per
+
+
+# --- formatting -----------------------------------------------------------
+
+
+def pct(x):
+    return "n/a" if x is None else f"{100 * x:.1f}%"
+
+
+def ci_pct(lo, hi):
+    return f"[{pct(lo)}, {pct(hi)}]"
+
+
+def num(x, d=3):
+    return "n/a" if x is None else f"{x:.{d}f}"
+
+
+def primary_ranking():
+    return "/".join(("I0",) + plan.PRIMARY)
+
+
+def build(res, summ):
+    lines = []
+    w = lines.append
+    prereg_sha = sha256(plan.PREREG)
+    manifest_sha = sha256(plan.LABEL_MANIFEST)
+    roles = {plan.SUBJECT: "subject", plan.CONTROL: "control"}
+
+    w("# Audit: Patel et al.'s interestingness on euclean")
+    w("")
+    w("<!-- generated by pipeline.interest.audit; do not edit by hand -->")
+    w("")
+    w("The metric under audit is defined by N. Patel, A. Rammal, A. Hayat, R. Munos and")
+    w("J. Kempe, *Learning to Discover Interesting Mathematics*, arXiv:2609.28603 (2026).")
+    w("Every definition, threshold, seed and decision rule used below was fixed in")
+    w(f"`docs/interest-prereg.md` (sha256 `{prereg_sha}`), and the restatement labels")
+    w(f"were frozen in `docs/interest-labels.sha256` (sha256 `{manifest_sha}`), both")
+    w("before any score was computed.")
+    w("")
+
+    # verdicts
+    w("## Verdicts")
+    w("")
+    w("Primary variant: V as the LoC of the emitted proof under premise expansion")
+    w("counting each lemma once, S as emitted (`" + primary_ranking() + "`).")
+    w("")
+    w("| hypothesis | " + " | ".join(f"{roles[t]} `{t}`" for t in plan.THEORIES) + " |")
+    w("|---|" + "---|" * len(plan.THEORIES))
+    row = ["H1: top-k enrichment of restatements under I0"]
+    for t in plan.THEORIES:
+        v, per = h1_verdict(res, t, primary_ranking())
+        row.append(f"{v} (permutations: {', '.join(per)})")
+    w("| " + " | ".join(row) + " |")
+    for filt, label in (("triviality", "H2: triviality filter"), ("restatement", "H2: restatement filter"),
+                        ("combined", "H2: filters combined")):
+        row = [label]
+        for t in plan.THEORIES:
+            v, per = h2_verdict(res, t, filt)
+            row.append(f"{v} ({', '.join(per)})")
+        w("| " + " | ".join(row) + " |")
+    row = ["H3: Spearman I0-U0 against the paper's 0.756"]
+    pv = "/".join(plan.PRIMARY)
+    for t in plan.THEORIES:
+        v, per = h3_verdict(res, t, pv)
+        row.append(f"{v} ({', '.join(per)})")
+    w("| " + " | ".join(row) + " |")
+    pol = "interestingness/" + plan.PRIMARY[0] + "/" + plan.PRIMARY[2]
+    row = ["H4: growth loop, interestingness promotion vs random"]
+    for t in plan.THEORIES:
+        v, per = h4_verdict(res, t, pol)
+        row.append(f"{v} ({', '.join(per)})")
+    w("| " + " | ".join(row) + " |")
+    w("| H5: corrected score | exploratory, decides nothing | exploratory, decides nothing |")
+    w("")
+
+    # corpora
+    w("## Corpora")
+    w("")
+    w("Each corpus is built as the reference run is built (chainer seed S, ten")
+    w("generations, default configuration), from the spec named, and kernel-checked")
+    w("in a private Lean package. Labels: R0 exact, R1 single-axiom instance, R2")
+    w("propagated, N none (definitions in the pre-registration).")
+    w("")
+    w("| run | theory | perm | seed | kept | Lean batches | generate s | clock-stopped generations | R0 | R1 | R2 | N | R1fp-only |")
+    w("|---|---|---|---|---|---|---|---|---|---|---|---|---|")
+    for run in plan.corpora():
+        s, h1 = summ[run], res[run]["H1"]
+        c = h1["label_counts"]
+        w(f"| `{run}` | {roles[s['theory']]} | {s['perm']} | {s['chainer_seed']} | {s['kept']} | "
+          f"{len(s['lean_modules'])} | {s['seconds_generate']} | {_clock_cell(s)} | "
+          f"{c['R0']} | {c['R1']} | {c['R2']} | {c['N']} | "
+          f"{round((h1['base_rate_R1fp'] - h1['base_rate']) * h1['n'])} |")
+    w("")
+    w("A clock-stopped generation is one whose saturation ended on the engine's")
+    w(f"wall-clock budget ({_time_budget()} s per generation, part of the reference")
+    w("configuration) rather than by running out of work. What such a generation keeps")
+    w("depends on machine speed and load, so every clock stop is a reproducibility")
+    w("limit on that corpus. The first list is read from the engine's trace, which")
+    w("sees a stop only at the start of a round; the second, where present, from")
+    w("watching the deadline after each saturation (`corpora._clock_watching`).")
+    w("")
+    _reproducibility_section(w, summ)
+    ref = summ[plan.corpora()[0]]
+    main = json.loads((ROOT / "runs" / "main" / "summary.json").read_text())
+    same = _identical_to_main(plan.corpora()[0])
+    same_imp = _importance_matches_main(plan.corpora()[0])
+    w(f"The subject's permutation-0, seed-0 corpus has {ref['kept']} statements; the stored")
+    w(f"reference run `runs/main` has {main['kept']}, and the two are "
+      f"{'identical statement for statement' if same else 'NOT identical'}. Its euclean")
+    w(f"importance ranking {'equals' if same_imp else 'DIFFERS from'} the one stored in `runs/main/importance.json`.")
+    w("")
+
+    # H1
+    w("## H1: does I0 rank restatements highly?")
+    w("")
+    w(f"Share of R0/R1/R2 among the top k = {plan.K} by each ranking, with a 95% bootstrap")
+    w(f"interval over {stats.BOOTSTRAP} resamples of statements, against the share in the whole corpus.")
+    w("A permutation counts as enriched only if the interval clears the base rate at")
+    w(f"every base seed ({', '.join(str(s) for s in plan.SEEDS)}).")
+    w("")
+    w("| run | base rate | top-k share, primary I0 | 95% CI | euclean importance | 95% CI |")
+    w("|---|---|---|---|---|---|")
+    for run in plan.corpora():
+        h1 = res[run]["H1"]
+        p = h1["rankings"][primary_ranking()]
+        im = h1["rankings"]["importance"]
+        w(f"| `{run}` | {pct(h1['base_rate'])} | {pct(p['share'])} | {ci_pct(*p['ci'])} | "
+          f"{pct(im['share'])} | {ci_pct(*im['ci'])} |")
+    w("")
+    w("Every ranking, as the count of permutations (of 3) in which it is enriched:")
+    w("")
+    w("| ranking | " + " | ".join(roles[t] for t in plan.THEORIES) + " |")
+    w("|---|" + "---|" * len(plan.THEORIES))
+    names = sorted(res[plan.corpora()[0]]["H1"]["rankings"])
+    for name in names:
+        cells = []
+        for t in plan.THEORIES:
+            v, per = h1_verdict(res, t, name)
+            cells.append(f"{sum(1 for x in per if x == 'enriched')} enriched, "
+                         f"{sum(1 for x in per if x == 'depleted')} depleted")
+        w(f"| `{name}` | " + " | ".join(cells) + " |")
+    w("")
+
+    # H2
+    w("## H2: do the paper's filters catch restatements?")
+    w("")
+    w("Recall on R1, R2 and their union; false-positive rate on N; Youden's J on")
+    w("R1/R2 against N. Wilson intervals for proportions, bootstrap for J.")
+    w("")
+    w("| run | filter | flagged | recall R1 | recall R2 | recall R1+R2 | FPR on N | J |")
+    w("|---|---|---|---|---|---|---|---|")
+    for run in plan.corpora():
+        for filt in ("triviality", "triviality_plus_grind", "restatement", "restatement_bigram",
+                     "restatement_direct", "combined"):
+            f = res[run]["H2"]["filters"][filt]
+            w(f"| `{run}` | {filt} | {f['flagged']} | {pct(f['recall_R1'][0])} | {pct(f['recall_R2'][0])} | "
+              f"{pct(f['recall_R1R2'][0])} {ci_pct(*f['recall_R1R2'][1:])} | {pct(f['fpr_N'][0])} | "
+              f"{num(f['youden_R1R2'][0])} [{num(f['youden_R1R2'][1])}, {num(f['youden_R1R2'][2])}] |")
+    w("")
+    w(f"Relevance filter failures, which the paper scores {metric.PENALTY_IRRELEVANT}, and incomplete tactic attempts:")
+    w("")
+    w("| run | relevance failures | incomplete tactic attempts |")
+    w("|---|---|---|")
+    for run in plan.corpora():
+        h2 = res[run]["H2"]
+        w(f"| `{run}` | {h2['relevance_failures']} | {h2['tactic_incomplete']} |")
+    w("")
+    w("Restatement-filter threshold sweep (secondary), recall on R1+R2 / FPR on N:")
+    w("")
+    taus = sorted(res[plan.corpora()[0]]["H2"]["sweep"])
+    w("| run | " + " | ".join(taus) + " |")
+    w("|---|" + "---|" * len(taus))
+    for run in plan.corpora():
+        sw = res[run]["H2"]["sweep"]
+        w(f"| `{run}` | " + " | ".join(f"{pct(sw[t]['recall_R1R2'][0])} / {pct(sw[t]['fpr_N'][0])}" for t in taus) + " |")
+    w("")
+
+    # H3
+    w("## H3: correlations")
+    w("")
+    w("Spearman rho with 95% bootstrap intervals, primary variant. I0-U0 leaves out")
+    w(f"U0 = 0, as the paper does; the paper reports {PAPER_RHO} on its library.")
+    w("")
+    w("| run | I0-U0 (n) | I0-importance | I0-footprint size | I0-direct users |")
+    w("|---|---|---|---|---|")
+    for run in plan.corpora():
+        h3 = res[run]["H3"][pv]
+
+        def c(x):
+            return f"{num(x[0])} [{num(x[1])}, {num(x[2])}]"
+
+        w(f"| `{run}` | {c(h3['I0_U0'])} (n={h3['I0_U0'][3]}) | {c(h3['I0_importance'])} | "
+          f"{c(h3['I0_footprint'])} | {c(h3['I0_users'])} |")
+    w("")
+    w("I0-U0 under every variant, as the verdict class per theory:")
+    w("")
+    w("| variant | " + " | ".join(roles[t] for t in plan.THEORIES) + " |")
+    w("|---|" + "---|" * len(plan.THEORIES))
+    for x, m, s in plan.variants():
+        name = f"{x}/{m}/{s}"
+        w(f"| `{name}` | " + " | ".join(h3_verdict(res, t, name)[0] for t in plan.THEORIES) + " |")
+    w("")
+
+    # H4
+    w("## H4: growth-loop simulation")
+    w("")
+    w(f"{loop.ROUNDS} rounds from the axioms, {loop.PROMOTE} promoted per round, triviality filter applied;")
+    w("the share of restatements among everything promoted. Random promotion is")
+    w(f"repeated under {loop.RANDOM_REPEATS} seeds; its 2.5th-97.5th percentile band is shown.")
+    w("")
+    pols = sorted(res[plan.corpora()[0]]["H4"]["policies"])
+    w("| run | random band | " + " | ".join(f"`{p}`" for p in pols) + " |")
+    w("|---|---|" + "---|" * len(pols))
+    for run in plan.corpora():
+        h4 = res[run]["H4"]
+        band = f"{pct(h4['random']['p2.5'])}-{pct(h4['random']['p97.5'])}"
+        w(f"| `{run}` | {band} | " + " | ".join(pct(h4["policies"][p]["share"]) for p in pols) + " |")
+    w("")
+    w("Verdict per policy (the rule applied to the primary policy above):")
+    w("")
+    w("| policy | " + " | ".join(roles[t] for t in plan.THEORIES) + " |")
+    w("|---|" + "---|" * len(plan.THEORIES))
+    for p in pols:
+        w(f"| `{p}` | " + " | ".join(h4_verdict(res, t, p)[0] for t in plan.THEORIES) + " |")
+    w("")
+
+    # H5
+    w("## H5 (exploratory): I0 times a footprint penalty")
+    w("")
+    w("I0 multiplied by (f - 1)/f for footprint size f, so single-axiom statements")
+    w("score zero. Exploratory: it decides nothing.")
+    w("")
+    w("| run | top-k share | 95% CI | Spearman with U0 |")
+    w("|---|---|---|---|")
+    for run in plan.corpora():
+        h5 = res[run]["H5"]
+        sp = h5["I0corr_U0"]
+        w(f"| `{run}` | {pct(h5['topk']['share'])} | {ci_pct(*h5['topk']['ci'])} | "
+          f"{num(sp[0])} [{num(sp[1])}, {num(sp[2])}] |")
+    w("")
+
+    _deviations_section(w)
+    sizes = sorted({len(json.loads((ROOT / plan.SPECS[(t, 0)]).read_text())["axioms"]) for t in plan.THEORIES})
+    w(_STATIC_TAIL.replace("<AXIOM_COUNTS>", " and ".join(str(x) for x in sizes)))
+    return "\n".join(lines) + "\n"
+
+
+def _identical_to_main(run):
+    a = json.loads((ROOT / "runs" / run / "corpus.json").read_text())
+    b = json.loads((ROOT / "runs" / "main" / "corpus.json").read_text())
+    key = lambda r: (r["id"], r["statement"], r["proof_size"])  # noqa: E731
+    return [key(r) for r in a] == [key(r) for r in b]
+
+
+def _duplicate():
+    from .corpora import run_id
+
+    return run_id(plan.CONTROL, 0, 0) + "-dup"
+
+
+DUPLICATE = _duplicate()
+
+
+def _deviations_section(w):
+    w("## Deviations recorded after the freeze")
+    w("")
+    w("- **Reproducibility duplicate.** At the owner's request, after the")
+    w("  pre-registration was frozen, the control's permutation-0, seed-0 corpus was")
+    w("  built a second time under load (see Corpora). It is a measurement only: no")
+    w("  hypothesis, threshold or decision rule changed, and no statistic reads it.")
+    w("- **Clock stops** are reported per corpus as a reproducibility limit, as")
+    w("  agreed with the owner when the control's build time was projected past the")
+    w("  two-hour limit; the owner approved the pre-registered settings unchanged.")
+    w("- **Observation hook.** After the freeze, `pipeline/interest/corpora.py` gained")
+    w("  a hook recording whether each generation's saturation ended past the")
+    w("  engine's deadline, and an option to write a build to another run directory")
+    w("  (used only for the duplicate). A small build with and without the hook gave")
+    w("  identical statements. The control's permutation-0, seed-0 corpus was built")
+    w("  before the hook existed, so its clock stops come from the engine trace alone.")
+    w("- **Renames for the guard.** Wording changed by a non-blind session to satisfy")
+    w("  the guard, including the names `loc` and `proof_size/<V>`, is recorded in the")
+    w("  pre-registration's blindness disclosure. No definition changed.")
+    w("")
+
+
+def _time_budget():
+    from ..chainer.engine import DEFAULTS
+
+    return DEFAULTS["time_budget"]
+
+
+def _trace_clock_gens(s):
+    return sorted({tr["generation"] for tr in s["traces"] for rd in tr["rounds"]
+                   if rd.get("stopped") == "time-budget"})
+
+
+def _clock_cell(s):
+    trace = _trace_clock_gens(s)
+    cell = ", ".join(map(str, trace)) if trace else "none"
+    watched = s.get("clock_past_deadline_generations")
+    if watched is not None:
+        cell += " / " + (", ".join(map(str, watched)) if watched else "none")
+    return cell
+
+
+def _canonical_keys(run):
+    from ..canon import normalize as N
+
+    recs = json.loads((ROOT / "runs" / run / "corpus.json").read_text())
+    return {N.key(r["statement_ast"]) for r in recs}
+
+
+def _reproducibility_section(w, summ):
+    """The control's permutation-0, seed-0 corpus built twice: once alone, once
+    beside five other control builds. Added after the freeze at the owner's
+    request; a measurement only, and no hypothesis reads the duplicate."""
+    dup_dir = ROOT / "runs" / DUPLICATE
+    if not (dup_dir / "summary.json").exists():
+        return
+    from .corpora import run_id
+
+    solo_run = run_id(plan.CONTROL, 0, 0)
+    solo, dup = summ[solo_run], json.loads((dup_dir / "summary.json").read_text())
+    a, b = _canonical_keys(solo_run), _canonical_keys(DUPLICATE)
+    inter, union = len(a & b), len(a | b)
+    w("### Reproducibility under load (added after the freeze)")
+    w("")
+    w(f"The control's permutation-0, seed-0 corpus was built twice with identical")
+    others = len(plan.PERMS) * len(plan.SEEDS) - 1
+    w(f"settings: `{solo_run}` alone on the machine, and `{DUPLICATE}` alongside the")
+    w(f"other {others} control builds. Every analysis uses the first; the second exists only")
+    w("for this measurement.")
+    w("")
+    w("| build | kept | generate s | clock-stopped generations |")
+    w("|---|---|---|---|")
+    w(f"| alone | {solo['kept']} | {solo['seconds_generate']} | {_clock_cell(solo)} |")
+    w(f"| under load | {dup['kept']} | {dup['seconds_generate']} | {_clock_cell(dup)} |")
+    w("")
+    w(f"Canonical statement keys: {inter} shared, {len(a - b)} only in the build alone,")
+    w(f"{len(b - a)} only in the build under load; Jaccard {inter / union if union else 1.0:.4f}.")
+    w("")
+
+
+def _importance_matches_main(run):
+    a = json.loads((ROOT / "runs" / run / "importance.json").read_text())
+    b = json.loads((ROOT / "runs" / "main" / "importance.json").read_text())
+    key = lambda r: (r["id"], r["importance"])  # noqa: E731
+    return [key(r) for r in a] == [key(r) for r in b]
+
+
+_STATIC_TAIL = """## What this does not decide
+
+- Whether the metric works on a large library of human-written mathematics. The
+  corpora here are machine-generated from <AXIOM_COUNTS> axioms by forward
+  chaining; their restatements are of one kind, an axiom's conclusion carried
+  through the corpus, and they can be labelled exactly only because the proof
+  DAG is exact.
+- Anything about the paper's learned estimator. V here is measured, never
+  predicted: the audit concerns the definition of interestingness (Eq. 6), not
+  how well a model approximates it.
+- Anything about the paper's language-model semantic filter, which removes
+  equivalent conjectures. It is not reproduced (no hosted services); the
+  chainer's canonical-form deduplication is the only equivalence filter here.
+- Whether restatements are uninteresting in some absolute sense. The labels
+  say a statement carries one axiom's conclusion; whether that is worth having
+  is a separate question.
+- Absolute values. Statements are short and identifiers anonymized, so I0 is
+  compared only by rank within one corpus, never with the paper's figures.
+- I0 and U0 share the factor V, so part of any correlation between them is
+  arithmetic rather than evidence; the I0-direct-users column separates it.
+
+## Related work
+
+Interestingness as a search criterion goes back at least to Lenat's AM and
+Eurisko, which steered discovery with hand-written interestingness heuristics,
+and to Colton's HR, which formed theories automatically and scored concepts
+and conjectures by measures including novelty, surprisingness and
+applicability. Closer to this setting, LeanConjecturer (arXiv:2506.22005)
+generates conjectures in Lean, and *Beyond Correctness: Toward Automated Novelty
+Verification with Lean 4* (arXiv:2608.14669) asks how a verified statement's
+novelty can be checked. The euclean finding this audit builds on is the
+sprint-3 restatement check: see `docs/EXECUTIVE_SUMMARY.md` (concept invention
+and frequency), `docs/structural-findings.md` (invented definitions, and where the failure is) and
+`docs/superpowers/specs/2026-08-07-sprint3-design.md`.
+
+## Regenerating the run artifacts
+
+`runs/` is gitignored. For each corpus in the pre-registration, in order:
+
+```bash
+uv run python -m pipeline.interest.corpora --theory <code> --perm <p> --seed <s>
+```
+
+```bash
+uv run python -m pipeline.interest.tactics --run <run>
+```
+
+then, once for all corpora, `uv run python -m pipeline.interest.labels`, which
+writes the label hash manifest, then for each corpus
+`uv run python -m pipeline.interest.run --run <run>`, and finally
+`uv run python -m pipeline.interest.audit`.
+"""
+
+
+def main():
+    res, summ = load_all()
+    text = build(res, summ)
+    OUT.write_text(text)
+    print(f"wrote {OUT}  sha256 {hashlib.sha256(text.encode()).hexdigest()}")
+
+
+if __name__ == "__main__":
+    main()
