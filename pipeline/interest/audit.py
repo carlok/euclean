@@ -18,6 +18,7 @@ from . import loop, metric, plan, stats
 
 OUT = ROOT / "docs" / "interest-audit.md"
 PAPER_RHO = 0.756
+NEED = 2  # permutations, of len(plan.PERMS), that must satisfy a condition (pre-registered)
 
 
 def sha256(path):
@@ -25,18 +26,33 @@ def sha256(path):
 
 
 def load_all():
-    res, summ = {}, {}
+    """Results of every analysed corpus, and why any corpus is absent.
+
+    A corpus can be missing only one way the owner approved after the freeze:
+    a control build still running at the owner's deadline was stopped, and
+    `runs/<run>/deadline-stop.json` says so. Anything else missing is reported
+    as such, never silently skipped.
+    """
+    res, summ, missing = {}, {}, {}
     for run in plan.corpora():
         d = ROOT / "runs" / run
-        res[run] = json.loads((d / "interest" / "results.json").read_text())
-        summ[run] = json.loads((d / "summary.json").read_text())
-    return res, summ
+        if (d / "interest" / "results.json").exists():
+            res[run] = json.loads((d / "interest" / "results.json").read_text())
+            summ[run] = json.loads((d / "summary.json").read_text())
+        elif (d / "deadline-stop.json").exists():
+            missing[run] = "build stopped at the owner's deadline before it finished"
+        elif not (d / "summary.json").exists():
+            missing[run] = "not built"
+        else:
+            missing[run] = "built but not analysed"
+    return res, summ, missing
 
 
-def runs_of(theory, perm):
+def runs_of(res, theory, perm):
+    """The analysed corpora of one permutation: every base seed that exists."""
     from .corpora import run_id
 
-    return [run_id(theory, perm, s) for s in plan.SEEDS]
+    return [r for r in (run_id(theory, perm, s) for s in plan.SEEDS) if r in res]
 
 
 def rng_(vals):
@@ -50,7 +66,9 @@ def h1_perm(res, theory, perm, ranking):
     """Enriched when the replicate range of CI lower bounds clears the replicate
     range of base rates: noisefloor's rule that overlapping ranges are no
     difference, applied to the bootstrap interval."""
-    rs = [res[r] for r in runs_of(theory, perm)]
+    rs = [res[r] for r in runs_of(res, theory, perm)]
+    if not rs:
+        return "missing"
     lo = [x["H1"]["rankings"][ranking]["ci"][0] for x in rs]
     hi = [x["H1"]["rankings"][ranking]["ci"][1] for x in rs]
     base = [x["H1"]["base_rate"] for x in rs]
@@ -64,13 +82,15 @@ def h1_perm(res, theory, perm, ranking):
 
 def h1_verdict(res, theory, ranking):
     per = [h1_perm(res, theory, p, ranking) for p in plan.PERMS]
-    fails = sum(1 for x in per if x == "enriched") >= 2
+    fails = sum(1 for x in per if x == "enriched") >= NEED
     return ("FAILS: ranks restatements highly" if fails else "does not fail"), per
 
 
 def h2_perm(res, theory, perm, filt):
     ok = []
-    for r in runs_of(theory, perm):
+    if not runs_of(res, theory, perm):
+        return "missing"
+    for r in runs_of(res, theory, perm):
         f = res[r]["H2"]["filters"][filt]
         rec = f["recall_R1R2"]
         j = f["youden_R1R2"]
@@ -82,9 +102,9 @@ def h2_perm(res, theory, perm, filt):
 
 def h2_verdict(res, theory, filt):
     per = [h2_perm(res, theory, p, filt) for p in plan.PERMS]
-    if sum(1 for x in per if x == "catches") >= 2:
+    if sum(1 for x in per if x == "catches") >= NEED:
         return "catches restatements", per
-    if sum(1 for x in per if x == "undefined") >= 2:
+    if sum(1 for x in per if x == "undefined") >= NEED:
         return "undefined (no R1/R2 statements)", per
     return "does not catch restatements", per
 
@@ -102,17 +122,19 @@ def h3_class(rho, lo, hi):
 def h3_verdict(res, theory, variant):
     per = []
     for p in plan.PERMS:
-        cls = {h3_class(*res[r]["H3"][variant]["I0_U0"][:3]) for r in runs_of(theory, p)}
-        per.append(cls.pop() if len(cls) == 1 else "mixed")
+        cls = {h3_class(*res[r]["H3"][variant]["I0_U0"][:3]) for r in runs_of(res, theory, p)}
+        per.append("missing" if not cls else cls.pop() if len(cls) == 1 else "mixed")
     for c in ("replicates", "weaker positive", "no positive correlation"):
-        if sum(1 for x in per if x == c) >= 2:
+        if sum(1 for x in per if x == c) >= NEED:
             return c, per
     return "inconclusive", per
 
 
 def h4_perm(res, theory, perm, policy):
     states = []
-    for r in runs_of(theory, perm):
+    if not runs_of(res, theory, perm):
+        return "missing"
+    for r in runs_of(res, theory, perm):
         h = res[r]["H4"]
         share = h["policies"][policy]["share"]
         if share is None:
@@ -124,9 +146,9 @@ def h4_perm(res, theory, perm, policy):
 
 def h4_verdict(res, theory, policy):
     per = [h4_perm(res, theory, p, policy) for p in plan.PERMS]
-    if sum(1 for x in per if x == "above") >= 2:
+    if sum(1 for x in per if x == "above") >= NEED:
         return "promotes restatements above chance", per
-    if sum(1 for x in per if x == "below") >= 2:
+    if sum(1 for x in per if x == "below") >= NEED:
         return "promotes restatements below chance", per
     return "indistinguishable from random promotion", per
 
@@ -150,9 +172,11 @@ def primary_ranking():
     return "/".join(("I0",) + plan.PRIMARY)
 
 
-def build(res, summ):
+def build(res, summ, missing=None):
     lines = []
     w = lines.append
+    missing = missing or {}
+    avail = [r for r in plan.corpora() if r in res]
     prereg_sha = sha256(plan.PREREG)
     manifest_sha = sha256(plan.LABEL_MANIFEST)
     roles = {plan.SUBJECT: "subject", plan.CONTROL: "control"}
@@ -214,7 +238,7 @@ def build(res, summ):
     w("")
     w("| run | theory | perm | seed | kept | Lean batches | generate s | clock-stopped generations | R0 | R1 | R2 | N | R1fp-only |")
     w("|---|---|---|---|---|---|---|---|---|---|---|---|---|")
-    for run in plan.corpora():
+    for run in avail:
         s, h1 = summ[run], res[run]["H1"]
         c = h1["label_counts"]
         w(f"| `{run}` | {roles[s['theory']]} | {s['perm']} | {s['chainer_seed']} | {s['kept']} | "
@@ -230,7 +254,20 @@ def build(res, summ):
     w("sees a stop only at the start of a round; the second, where present, from")
     w("watching the deadline after each saturation (`corpora._clock_watching`).")
     w("")
-    _reproducibility_section(w, summ)
+    if missing:
+        w("### Corpora missing from the analysis")
+        w("")
+        w("| run | why |")
+        w("|---|---|")
+        for run, why in missing.items():
+            w(f"| `{run}` | {why} |")
+        w("")
+        w("For a theory with a missing corpus, each decision rule is applied to the")
+        w("base seeds that exist for each permutation; a permutation with none is")
+        w(f"counted as missing, and the threshold of {NEED} of {len(plan.PERMS)} permutations is unchanged.")
+        w("This is an owner-approved deviation, recorded below.")
+        w("")
+    _reproducibility_section(w, summ, avail)
     ref = summ[plan.corpora()[0]]
     main = json.loads((ROOT / "runs" / "main" / "summary.json").read_text())
     same = _identical_to_main(plan.corpora()[0])
@@ -247,18 +284,18 @@ def build(res, summ):
     w(f"Share of R0/R1/R2 among the top k = {plan.K} by each ranking, with a 95% bootstrap")
     w(f"interval over {stats.BOOTSTRAP} resamples of statements, against the share in the whole corpus.")
     w("A permutation counts as enriched only if the interval clears the base rate at")
-    w(f"every base seed ({', '.join(str(s) for s in plan.SEEDS)}).")
+    w(f"every base seed analysed for it (pre-registered: {', '.join(str(s) for s in plan.SEEDS)}).")
     w("")
     w("| run | base rate | top-k share, primary I0 | 95% CI | euclean importance | 95% CI |")
     w("|---|---|---|---|---|---|")
-    for run in plan.corpora():
+    for run in avail:
         h1 = res[run]["H1"]
         p = h1["rankings"][primary_ranking()]
         im = h1["rankings"]["importance"]
         w(f"| `{run}` | {pct(h1['base_rate'])} | {pct(p['share'])} | {ci_pct(*p['ci'])} | "
           f"{pct(im['share'])} | {ci_pct(*im['ci'])} |")
     w("")
-    w("Every ranking, as the count of permutations (of 3) in which it is enriched:")
+    w(f"Every ranking, as the count of permutations (of {len(plan.PERMS)}) in which it is enriched:")
     w("")
     w("| ranking | " + " | ".join(roles[t] for t in plan.THEORIES) + " |")
     w("|---|" + "---|" * len(plan.THEORIES))
@@ -280,7 +317,7 @@ def build(res, summ):
     w("")
     w("| run | filter | flagged | recall R1 | recall R2 | recall R1+R2 | FPR on N | J |")
     w("|---|---|---|---|---|---|---|---|")
-    for run in plan.corpora():
+    for run in avail:
         for filt in ("triviality", "triviality_plus_grind", "restatement", "restatement_bigram",
                      "restatement_direct", "combined"):
             f = res[run]["H2"]["filters"][filt]
@@ -292,7 +329,7 @@ def build(res, summ):
     w("")
     w("| run | relevance failures | incomplete tactic attempts |")
     w("|---|---|---|")
-    for run in plan.corpora():
+    for run in avail:
         h2 = res[run]["H2"]
         w(f"| `{run}` | {h2['relevance_failures']} | {h2['tactic_incomplete']} |")
     w("")
@@ -301,7 +338,7 @@ def build(res, summ):
     taus = sorted(res[plan.corpora()[0]]["H2"]["sweep"])
     w("| run | " + " | ".join(taus) + " |")
     w("|---|" + "---|" * len(taus))
-    for run in plan.corpora():
+    for run in avail:
         sw = res[run]["H2"]["sweep"]
         w(f"| `{run}` | " + " | ".join(f"{pct(sw[t]['recall_R1R2'][0])} / {pct(sw[t]['fpr_N'][0])}" for t in taus) + " |")
     w("")
@@ -314,7 +351,7 @@ def build(res, summ):
     w("")
     w("| run | I0-U0 (n) | I0-importance | I0-footprint size | I0-direct users |")
     w("|---|---|---|---|---|")
-    for run in plan.corpora():
+    for run in avail:
         h3 = res[run]["H3"][pv]
 
         def c(x):
@@ -342,7 +379,7 @@ def build(res, summ):
     pols = sorted(res[plan.corpora()[0]]["H4"]["policies"])
     w("| run | random band | " + " | ".join(f"`{p}`" for p in pols) + " |")
     w("|---|---|" + "---|" * len(pols))
-    for run in plan.corpora():
+    for run in avail:
         h4 = res[run]["H4"]
         band = f"{pct(h4['random']['p2.5'])}-{pct(h4['random']['p97.5'])}"
         w(f"| `{run}` | {band} | " + " | ".join(pct(h4["policies"][p]["share"]) for p in pols) + " |")
@@ -363,14 +400,14 @@ def build(res, summ):
     w("")
     w("| run | top-k share | 95% CI | Spearman with U0 |")
     w("|---|---|---|---|")
-    for run in plan.corpora():
+    for run in avail:
         h5 = res[run]["H5"]
         sp = h5["I0corr_U0"]
         w(f"| `{run}` | {pct(h5['topk']['share'])} | {ci_pct(*h5['topk']['ci'])} | "
           f"{num(sp[0])} [{num(sp[1])}, {num(sp[2])}] |")
     w("")
 
-    _deviations_section(w)
+    _deviations_section(w, missing)
     sizes = sorted({len(json.loads((ROOT / plan.SPECS[(t, 0)]).read_text())["axioms"]) for t in plan.THEORIES})
     w(_STATIC_TAIL.replace("<AXIOM_COUNTS>", " and ".join(str(x) for x in sizes)))
     return "\n".join(lines) + "\n"
@@ -392,9 +429,15 @@ def _duplicate():
 DUPLICATE = _duplicate()
 
 
-def _deviations_section(w):
+def _deviations_section(w, missing):
     w("## Deviations recorded after the freeze")
     w("")
+    if missing:
+        w("- **Missing control corpora.** The owner approved letting the two slowest")
+        w("  control builds run until a fixed deadline and analysing whatever exists")
+        w("  then. Missing: " + ", ".join(f"`{r}`" for r in missing) + " (reasons under")
+        w("  Corpora). Each decision rule uses the base seeds that exist for each")
+        w(f"  permutation; the {NEED}-of-{len(plan.PERMS)} threshold is unchanged. The subject is unaffected.")
     w("- **Reproducibility duplicate.** At the owner's request, after the")
     w("  pre-registration was frozen, the control's permutation-0, seed-0 corpus was")
     w("  built a second time under load (see Corpora). It is a measurement only: no")
@@ -425,6 +468,11 @@ def _trace_clock_gens(s):
                    if rd.get("stopped") == "time-budget"})
 
 
+def _clock_gens(s):
+    """Generations stopped on the clock, by either record."""
+    return sorted(set(_trace_clock_gens(s)) | set(s.get("clock_past_deadline_generations") or []))
+
+
 def _clock_cell(s):
     trace = _trace_clock_gens(s)
     cell = ", ".join(map(str, trace)) if trace else "none"
@@ -441,7 +489,7 @@ def _canonical_keys(run):
     return {N.key(r["statement_ast"]) for r in recs}
 
 
-def _reproducibility_section(w, summ):
+def _reproducibility_section(w, summ, avail):
     """The control's permutation-0, seed-0 corpus built twice: once alone, once
     beside five other control builds. Added after the freeze at the owner's
     request; a measurement only, and no hypothesis reads the duplicate."""
@@ -454,21 +502,56 @@ def _reproducibility_section(w, summ):
     solo, dup = summ[solo_run], json.loads((dup_dir / "summary.json").read_text())
     a, b = _canonical_keys(solo_run), _canonical_keys(DUPLICATE)
     inter, union = len(a & b), len(a | b)
+    others = len(plan.PERMS) * len(plan.SEEDS) - 1
+    load = json.loads((dup_dir / "load.json").read_text())
+    start = load["first_build_log_created"]
+    subj_end = load["subject_builds_window"][1] - start
+    par = load["concurrent_control_builds_started"] - start
+    done = {}
+    for st in solo["stamps"]:
+        msg = st["msg"].strip()
+        if msg.startswith("generation "):
+            done[int(msg.split()[1].rstrip(":"))] = st["t"]
+    phase = {g: ("with the subject builds" if t <= subj_end else "alone" if t <= par
+                 else f"with the other {others} control builds") for g, t in sorted(done.items())}
     w("### Reproducibility under load (added after the freeze)")
     w("")
-    w(f"The control's permutation-0, seed-0 corpus was built twice with identical")
-    others = len(plan.PERMS) * len(plan.SEEDS) - 1
-    w(f"settings: `{solo_run}` alone on the machine, and `{DUPLICATE}` alongside the")
-    w(f"other {others} control builds. Every analysis uses the first; the second exists only")
-    w("for this measurement.")
+    w("The control's permutation-0, seed-0 corpus was built twice with identical")
+    w(f"settings. The first build, `{solo_run}`, is the one every analysis uses. It")
+    w(f"shared the machine with the subject builds for its first {round(subj_end)} s, ran")
+    w(f"alone until {round(par)} s, and then shared it with the other {others} control builds.")
+    w(f"The duplicate, `{DUPLICATE}`, ran entirely alongside those {others}. It exists")
+    w("only for this measurement.")
+    w("")
+    w("Where each generation of the first build finished:")
+    w("")
+    w("| generation | finished at s | machine shared |")
+    w("|---|---|---|")
+    for g, t in sorted(done.items()):
+        w(f"| {g} | {t} | {phase[g]} |")
     w("")
     w("| build | kept | generate s | clock-stopped generations |")
     w("|---|---|---|---|")
-    w(f"| alone | {solo['kept']} | {solo['seconds_generate']} | {_clock_cell(solo)} |")
-    w(f"| under load | {dup['kept']} | {dup['seconds_generate']} | {_clock_cell(dup)} |")
+    w(f"| first | {solo['kept']} | {solo['seconds_generate']} | {_clock_cell(solo)} |")
+    w(f"| duplicate | {dup['kept']} | {dup['seconds_generate']} | {_clock_cell(dup)} |")
     w("")
-    w(f"Canonical statement keys: {inter} shared, {len(a - b)} only in the build alone,")
-    w(f"{len(b - a)} only in the build under load; Jaccard {inter / union if union else 1.0:.4f}.")
+    w(f"Canonical statement keys: {inter} shared, {len(a - b)} only in the first build,")
+    w(f"{len(b - a)} only in the duplicate; Jaccard {inter / union if union else 1.0:.4f}.")
+    same_bytes = (ROOT / "runs" / solo_run / "corpus.json").read_bytes() == (dup_dir / "corpus.json").read_bytes()
+    w(f"The two `corpus.json` files are {'byte-identical' if same_bytes else 'NOT byte-identical'}.")
+    w("")
+    pair_stops = bool(_clock_gens(solo)) or bool(_clock_gens(dup))
+    stopped = [r for r in avail if _clock_gens(summ[r])]
+    if not pair_stops:
+        w("Neither build had a clock-stopped generation, so this measures")
+        w("reproducibility only for builds that never reach the engine's time budget.")
+        w("It says nothing about builds that do.")
+    else:
+        w("At least one of the two builds had a clock-stopped generation.")
+    w(f"{len(stopped)} of the {len(avail)} analysed corpora had at least one")
+    w("clock-stopped generation" + (f" ({', '.join(f'`{r}`' for r in stopped)})" if stopped else "") + ".")
+    w("Their contents may depend on machine load, by an amount this audit did not")
+    w("measure; every result on them carries that limit.")
     w("")
 
 
@@ -534,8 +617,8 @@ writes the label hash manifest, then for each corpus
 
 
 def main():
-    res, summ = load_all()
-    text = build(res, summ)
+    res, summ, missing = load_all()
+    text = build(res, summ, missing)
     OUT.write_text(text)
     print(f"wrote {OUT}  sha256 {hashlib.sha256(text.encode()).hexdigest()}")
 

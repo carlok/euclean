@@ -118,13 +118,15 @@ def main():
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--run", required=True)
+    ap.add_argument("--workers", type=int, default=None,
+                    help="Lean processes at once; the result does not depend on it")
     args = ap.parse_args()
     run_dir = ROOT / "runs" / args.run
     summary = json.loads((run_dir / "summary.json").read_text())
     spec = json.loads((ROOT / summary["spec_path"]).read_text())
     records = json.loads((run_dir / "corpus.json").read_text())
     pkg = Package(run_dir / "interest" / "lean", spec)
-    results, meta = run_ladder(pkg, records, summary["lean_modules"])
+    results, meta = run_ladder(pkg, records, summary["lean_modules"], workers=args.workers)
     write(run_dir / "interest" / "tactics.json", results, meta)
     print(f"{args.run}: ladder done in {meta['seconds']}s, "
           f"{len(meta['incomplete_files'])} incomplete files")
