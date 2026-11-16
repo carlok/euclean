@@ -18,6 +18,9 @@ from . import loop, metric, plan, stats
 
 OUT = ROOT / "docs" / "interest-audit.md"
 PAPER_RHO = 0.756
+# Phase E: the date the findings were read back through the interpretation,
+# which stays outside the public tree. None until that has happened.
+UNBLINDED_ON = "2026-11-16"
 NEED = 2  # permutations, of len(plan.PERMS), that must satisfy a condition (pre-registered)
 
 
@@ -435,6 +438,8 @@ def build(res, summ, missing=None):
     _deviations_section(w, missing)
     sizes = sorted({len(json.loads((ROOT / plan.SPECS[(t, 0)]).read_text())["axioms"]) for t in plan.THEORIES})
     w(_STATIC_TAIL.replace("<AXIOM_COUNTS>", " and ".join(str(x) for x in sizes)))
+    if UNBLINDED_ON:
+        w(f"Unblinding done on {UNBLINDED_ON}, results held privately.")
     return "\n".join(lines) + "\n"
 
 

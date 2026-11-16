@@ -447,3 +447,4 @@ writes the label hash manifest, then for each corpus
 `uv run python -m pipeline.interest.run --run <run>`, and finally
 `uv run python -m pipeline.interest.audit`.
 
+Unblinding done on 2026-11-16, results held privately.
