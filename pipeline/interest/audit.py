@@ -325,6 +325,20 @@ def build(res, summ, missing=None):
               f"{pct(f['recall_R1R2'][0])} {ci_pct(*f['recall_R1R2'][1:])} | {pct(f['fpr_N'][0])} | "
               f"{num(f['youden_R1R2'][0])} [{num(f['youden_R1R2'][1])}, {num(f['youden_R1R2'][2])}] |")
     w("")
+    # The pre-registered H2 rule bounds recall and J from below, not the
+    # false-positive rate. Say so wherever a passing filter flags most of N.
+    for t in plan.THEORIES:
+        for filt in ("triviality", "restatement", "combined"):
+            if h2_verdict(res, t, filt)[0] != "catches restatements":
+                continue
+            fprs = [res[r]["H2"]["filters"][filt]["fpr_N"][0] for r in avail
+                    if summ[r]["theory"] == t and res[r]["H2"]["filters"][filt]["fpr_N"][0] is not None]
+            if fprs and max(fprs) > 0.5:
+                w(f"Commentary, not a verdict: on the {roles[t]}, the `{filt}` filter satisfies the pre-registered rule while")
+                w(f"flagging {pct(min(fprs))} to {pct(max(fprs))} of N statements. The rule bounds recall and")
+                w("Youden's J from below but not the false-positive rate, so this verdict")
+                w("does not mean the filter separates restatements from the rest.")
+                w("")
     w(f"Relevance filter failures, which the paper scores {metric.PENALTY_IRRELEVANT}, and incomplete tactic attempts:")
     w("")
     w("| run | relevance failures | incomplete tactic attempts |")
@@ -451,6 +465,11 @@ def _deviations_section(w, missing):
     w("  (used only for the duplicate). A small build with and without the hook gave")
     w("  identical statements. The control's permutation-0, seed-0 corpus was built")
     w("  before the hook existed, so its clock stops come from the engine trace alone.")
+    w("- **Tactic harness fix.** The first ladder run, on one subject corpus, used")
+    w("  Lean's default cap on errors per file, so every file stopped early. The")
+    w("  harness's end-of-file check marked all of them incomplete, nothing was")
+    w("  read from that run, and it was redone with the cap lifted")
+    w("  (`interest.lean.MAX_ERRORS`). A test now covers it. No definition changed.")
     w("- **Renames for the guard.** Wording changed by a non-blind session to satisfy")
     w("  the guard, including the names `loc` and `proof_size/<V>`, is recorded in the")
     w("  pre-registration's blindness disclosure. No definition changed.")

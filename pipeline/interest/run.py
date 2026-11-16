@@ -30,6 +30,9 @@ def load(run):
     if run not in frozen:
         raise SystemExit(f"{run}: no frozen label hash in {plan.LABEL_MANIFEST}")
     tac, tac_meta = tactics.read(run_dir / "interest" / "tactics.json")
+    if all(v is None for row in tac.values() for v in row.values()):
+        # every tactic file failed to finish: a harness fault, not a result
+        raise SystemExit(f"{run}: no tactic attempt completed; refusing to score")
     imp = {r["id"]: r["importance"] for r in json.loads((run_dir / "importance.json").read_text())}
     return run_dir, summary, T, records, {r["id"]: r for r in rows}, sha, tac, tac_meta, imp
 

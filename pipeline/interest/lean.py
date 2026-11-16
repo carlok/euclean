@@ -19,6 +19,7 @@ from ..kernel.theory import ROOT
 
 TOOLCHAIN_FILE = ROOT / "theory" / "lean-toolchain"
 SENTINEL = "interest-sentinel-ok"
+MAX_ERRORS = 1000000
 
 
 def raw_formula(f, top=False):
@@ -119,10 +120,15 @@ class Package:
         return r.returncode == 0, (r.stdout + r.stderr)
 
     def run(self, stem, timeout=None):
-        """Elaborate Theory/<stem>.lean without writing an .olean."""
+        """Elaborate Theory/<stem>.lean without writing an .olean.
+
+        Lean stops a file after 100 errors by default (`maxErrors`). A tactic
+        file is mostly declarations expected to fail, so the cap is lifted;
+        otherwise everything after the hundredth failure goes unchecked.
+        """
         try:
             r = subprocess.run(
-                ["lean", f"Theory/{stem}.lean"],
+                ["lean", f"-DmaxErrors={MAX_ERRORS}", f"Theory/{stem}.lean"],
                 cwd=self.path, capture_output=True, text=True, env=self.env(), timeout=timeout,
             )
         except subprocess.TimeoutExpired as exc:

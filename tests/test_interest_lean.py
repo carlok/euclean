@@ -46,3 +46,17 @@ def test_package_checks_a_corpus_and_runs_the_ladder(tmp_path):
     assert not any(results[r["id"]]["triv"] for r in recs)
     # given the premises its own proof cites, grind closes the single-step instance
     assert results["t0_00000"]["grind"] is True
+
+
+@pytest.mark.skipif(shutil.which("lean") is None, reason="needs the Lean toolchain")
+def test_a_file_with_many_failures_is_checked_to_the_end(tmp_path):
+    """Lean gives up after 100 errors unless told otherwise; a tactic file is
+    mostly expected failures, so the last declaration must still be reached."""
+    pkg = lean.Package(tmp_path / "lean", fx.SPEC).create()
+    body = ["import Theory.Anonymous", ""]
+    body += [f"theorem bad{i} : ∀ (x : Obj), R0 x x := by simp" for i in range(150)]
+    body += [f'#eval IO.println "{lean.SENTINEL}"']
+    (pkg.src / "Many.lean").write_text("\n".join(body) + "\n")
+    code, out = pkg.run("Many")
+    assert code is not None and lean.SENTINEL in out
+    assert len(lean.failing_lines(out)) == 150
