@@ -165,7 +165,7 @@ def ci_pct(lo, hi):
 
 
 def num(x, d=3):
-    return "n/a" if x is None else f"{x:.{d}f}"
+    return "n/a" if x is None or x != x else f"{x:.{d}f}"
 
 
 def primary_ranking():
@@ -286,14 +286,14 @@ def build(res, summ, missing=None):
     w("A permutation counts as enriched only if the interval clears the base rate at")
     w(f"every base seed analysed for it (pre-registered: {', '.join(str(s) for s in plan.SEEDS)}).")
     w("")
-    w("| run | base rate | top-k share, primary I0 | 95% CI | euclean importance | 95% CI |")
-    w("|---|---|---|---|---|---|")
+    w("| run | base rate | top-k share, primary I0 | 95% CI | excess over base | euclean importance | 95% CI |")
+    w("|---|---|---|---|---|---|---|")
     for run in avail:
         h1 = res[run]["H1"]
         p = h1["rankings"][primary_ranking()]
         im = h1["rankings"]["importance"]
         w(f"| `{run}` | {pct(h1['base_rate'])} | {pct(p['share'])} | {ci_pct(*p['ci'])} | "
-          f"{pct(im['share'])} | {ci_pct(*im['ci'])} |")
+          f"{100 * p['excess']:+.1f} pp | {pct(im['share'])} | {ci_pct(*im['ci'])} |")
     w("")
     w(f"Every ranking, as the count of permutations (of {len(plan.PERMS)}) in which it is enriched:")
     w("")
@@ -398,7 +398,18 @@ def build(res, summ, missing=None):
         band = f"{pct(h4['random']['p2.5'])}-{pct(h4['random']['p97.5'])}"
         w(f"| `{run}` | {band} | " + " | ".join(pct(h4["policies"][p]["share"]) for p in pols) + " |")
     w("")
-    w("Verdict per policy (the rule applied to the primary policy above):")
+    full = loop.ROUNDS * loop.PROMOTE
+    short = [p for p in pols if any(res[r]["H4"]["policies"][p]["promoted"] != full for r in avail)]
+    if short:
+        w(f"Statements promoted in all, where a policy did not promote {full}; a share")
+        w("over few promotions is a share of very little:")
+        w("")
+        w("| run | " + " | ".join(f"`{p}`" for p in short) + " |")
+        w("|---|" + "---|" * len(short))
+        for run in avail:
+            w(f"| `{run}` | " + " | ".join(str(res[run]["H4"]["policies"][p]["promoted"]) for p in short) + " |")
+        w("")
+    w(f"The pre-registered H4 rule applied to every policy; only `{pol}` decides H4:")
     w("")
     w("| policy | " + " | ".join(roles[t] for t in plan.THEORIES) + " |")
     w("|---|" + "---|" * len(plan.THEORIES))
@@ -569,8 +580,9 @@ def _reproducibility_section(w, summ, avail):
         w("At least one of the two builds had a clock-stopped generation.")
     w(f"{len(stopped)} of the {len(avail)} analysed corpora had at least one")
     w("clock-stopped generation" + (f" ({', '.join(f'`{r}`' for r in stopped)})" if stopped else "") + ".")
-    w("Their contents may depend on machine load, by an amount this audit did not")
-    w("measure; every result on them carries that limit.")
+    if stopped:
+        w("Their contents may depend on machine load, by an amount this audit did not")
+        w("measure; every result on them carries that limit.")
     w("")
 
 
@@ -593,13 +605,13 @@ _STATIC_TAIL = """## What this does not decide
   how well a model approximates it.
 - Anything about the paper's language-model semantic filter, which removes
   equivalent conjectures. It is not reproduced (no hosted services); the
-  chainer's canonical-form deduplication is the only equivalence filter here.
+  chainer's canonical-form deduplication is the only de-duplication filter here.
 - Whether restatements are uninteresting in some absolute sense. The labels
   say a statement carries one axiom's conclusion; whether that is worth having
   is a separate question.
 - Absolute values. Statements are short and identifiers anonymized, so I0 is
-  compared only by rank within one corpus, never with the paper's figures.
-- I0 and U0 share the factor V, so part of any correlation between them is
+  compared only by rank within one corpus, never with the paper's reported values.
+- I0 and U0 share the factor V, so part of any correlation of one with the other is
   arithmetic rather than evidence; the I0-direct-users column separates it.
 
 ## Related work
