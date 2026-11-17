@@ -109,6 +109,59 @@ def test_ci_configuration_is_a_scanned_root_on_the_hard_tier():
         assert any(p.suffix in (".yml", ".yaml") for p in lg.walk(".github"))
 
 
+def test_pdf_text_rejoins_what_typesetting_splits():
+    rx = lg._term_re(["wire", "beta gamma", "delta-x"])
+    hit = lambda text: any(rx.search(v) for v in lg.pdf_variants(text))
+    assert hit("a broken wi-\nre here")           # hyphenated at a line end
+    assert hit("the beta\ngamma phrase")          # phrase across a line break
+    assert hit("so delta-\nx it is")              # listed hyphenated phrase broken at its hyphen
+    assert hit("ﬁ and wire")                 # ligature folded, term still found
+    assert not hit("rewire\nthe thing")           # boundary rule unchanged
+
+
+def _minimal_pdf(text):
+    objs = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 100] /Contents 4 0 R "
+        b"/Resources << /Font << /F1 5 0 R >> >> >>",
+        None,
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    stream = b"BT /F1 12 Tf 10 50 Td (" + text.encode("ascii") + b") Tj ET"
+    objs[3] = b"<< /Length %d >>\nstream\n" % len(stream) + stream + b"\nendstream"
+    out, offsets = b"%PDF-1.4\n", []
+    for i, body in enumerate(objs, 1):
+        offsets.append(len(out))
+        out += b"%d 0 obj\n" % i + body + b"\nendobj\n"
+    xref = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objs) + 1)
+    out += b"".join(b"%010d 00000 n \n" % o for o in offsets)
+    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objs) + 1, xref)
+    return out
+
+
+def test_pdf_text_is_extracted_and_scanned(tmp_path):
+    import shutil
+    import pytest
+    if shutil.which("pdftotext") is None:
+        pytest.skip("needs pdftotext")
+    pdf = tmp_path / "x.pdf"
+    pdf.write_bytes(_minimal_pdf("a wire in a pdf"))
+    assert "wire" in lg.pdf_text(pdf)
+    found = lg.scan_pdf(pdf, [("hard", lg._term_re_bytes(["wire"]))])
+    assert [(t, term) for t, term, _ in found] == [("hard", "wire")]
+    broken = tmp_path / "broken.pdf"
+    broken.write_bytes(b"not a pdf")
+    assert lg.scan_pdf(broken, [("hard", lg._term_re_bytes(["wire"]))]) is None
+
+
+def test_kit_and_paper_are_scanned_roots():
+    assert "kit" in lg.PUBLIC_DIRS and "kit" not in lg.ARTIFACT_DIRS
+    assert "paper" in lg.PUBLIC_DIRS and "paper" in lg.ARTIFACT_DIRS
+    assert ".pdf" not in lg.SKIP_SUFFIXES
+
+
 def test_default_report_hides_terms_and_context(capsys):
     hits = [("hard", "docs/x.md:3", "TERMVALUE", "some CONTEXTVALUE here")]
     lg.report(hits)

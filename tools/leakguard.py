@@ -24,6 +24,7 @@ import pathlib
 import re
 import subprocess
 import sys
+import unicodedata
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 VOCAB = ROOT / "secret" / "forbidden_vocab.txt"
@@ -32,19 +33,24 @@ VOCAB = ROOT / "secret" / "forbidden_vocab.txt"
 # error, not a silent skip: the failure mode this prevents is moving the theory
 # to a new directory and getting "clean" from a guard that never opened it.
 PUBLIC_DIRS = ["theory", "theories", "pipeline", "generated", "metadata", "runs",
-               "tools", "tests", "docs", "tex", ".github"]
+               "tools", "tests", "docs", "tex", ".github", "kit", "paper"]
 # Roots that legitimately may be absent (nothing has been generated yet).
 # `.github` holds CI configuration, which is published with the repository.
 # Being a dot-directory it was outside every root until it was listed here.
 OPTIONAL_DIRS = {"theories", "generated", "metadata", "runs", "tex", ".github"}
-ARTIFACT_DIRS = {"theory", "theories", "generated", "metadata", "runs", "docs", "tex"}
+# `kit` is code and data, so like `pipeline` it is held to the hard tier only.
+# `paper` is published prose, like `docs` and `tex`.
+ARTIFACT_DIRS = {"theory", "theories", "generated", "metadata", "runs", "docs", "tex", "paper"}
 
 SKIP_DIRS = {".git", ".lake", "__pycache__", ".DS_Store", "secret"}
 SKIP_SUFFIXES = {".olean", ".ilean", ".trace", ".hash", ".pyc",
                  # typesetter output: regenerated from the source next to it,
                  # and its own logs quote package chatter that trips the
                  # artifact tier without ever being authored by anyone
-                 ".log", ".aux", ".out", ".toc", ".pdf", ".gz", ".fls", ".fdb_latexmk"}
+                 ".log", ".aux", ".out", ".toc", ".gz", ".fls", ".fdb_latexmk"}
+# PDFs are not skipped. A compiled paper is published next to its source, and
+# a guard that skips the file people actually read is a guard with a hole in
+# it. Their text is extracted and scanned; see `pdf_text`.
 
 
 def load_vocab():
@@ -199,6 +205,45 @@ def scan_bytes(data, patterns):
     return hits
 
 
+def pdf_variants(text):
+    """The extracted text of a PDF, in the forms a listed term could hide in.
+
+    Typesetting breaks words and phrases across lines, hyphenates, and emits
+    ligatures as single characters. NFKC folds the ligatures. Then two
+    variants: a line-end hyphen dropped (`restate-` + `ment`), and kept (a
+    listed hyphenated phrase broken at its hyphen); in both, every run of
+    whitespace becomes one space, so phrases broken across lines rejoin.
+    Line numbers mean nothing in a PDF, so hits are reported against the file.
+    """
+    text = unicodedata.normalize("NFKC", text)
+    joined = re.sub(r"(\w)-\s*\n\s*(\w)", r"\1\2", text)
+    kept = re.sub(r"(\w)-\s*\n\s*(\w)", r"\1-\2", text)
+    return [re.sub(r"\s+", " ", v) for v in (joined, kept)]
+
+
+def pdf_text(path):
+    """Extracted text of a PDF, or None if it cannot be extracted."""
+    try:
+        r = subprocess.run(["pdftotext", "-enc", "UTF-8", str(path), "-"],
+                           capture_output=True, check=False, timeout=300)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return r.stdout.decode("utf-8", "replace") if r.returncode == 0 else None
+
+
+def scan_pdf(path, patterns):
+    text = pdf_text(path)
+    if text is None:
+        return None
+    hits, seen = [], set()
+    for variant in pdf_variants(text):
+        for tier, _, term, context in scan_bytes(variant.encode("utf-8"), patterns):
+            if tier not in seen:
+                seen.add(tier)
+                hits.append((tier, term, context))
+    return hits
+
+
 def scan_vocab(hard, artifacts):
     hard_re = _term_re_bytes(hard)
     art_re = _term_re_bytes(artifacts)
@@ -208,6 +253,15 @@ def scan_vocab(hard, artifacts):
         if dirname in ARTIFACT_DIRS:
             patterns.append(("artifact", art_re))
         for path in (root_files() if dirname == "<root>" else walk(dirname)):
+            if path.suffix == ".pdf":
+                rel = path.relative_to(ROOT)
+                found = scan_pdf(path, patterns)
+                if found is None:
+                    # never report clean on a file it could not read
+                    hits.append(("unscanned", f"{rel}", "", "PDF text could not be extracted (pdftotext)"))
+                else:
+                    hits.extend((tier, f"{rel} (pdf text)", term, ctx) for tier, term, ctx in found)
+                continue
             try:
                 data = path.read_bytes()
             except OSError:
