@@ -10,8 +10,16 @@ domain's vocabulary would leak the domain as surely as the vocabulary would.
 
 Exit code 0 clean, 1 on any hit.  Run after every generation batch and before
 any report is written.
+
+Output names locations only: tier and file:line. Pass `--show` to also print
+the matched term and its context. Hiding is the default because the guard is
+run by executors who must stay blind, and a guard that prints the wordlist to
+whoever runs it leaks the thing it exists to protect. Only the repository
+owner should pass `--show`.
 """
 
+import argparse
+import codecs
 import pathlib
 import re
 import subprocess
@@ -24,9 +32,11 @@ VOCAB = ROOT / "secret" / "forbidden_vocab.txt"
 # error, not a silent skip: the failure mode this prevents is moving the theory
 # to a new directory and getting "clean" from a guard that never opened it.
 PUBLIC_DIRS = ["theory", "theories", "pipeline", "generated", "metadata", "runs",
-               "tools", "tests", "docs", "tex"]
+               "tools", "tests", "docs", "tex", ".github"]
 # Roots that legitimately may be absent (nothing has been generated yet).
-OPTIONAL_DIRS = {"theories", "generated", "metadata", "runs", "tex"}
+# `.github` holds CI configuration, which is published with the repository.
+# Being a dot-directory it was outside every root until it was listed here.
+OPTIONAL_DIRS = {"theories", "generated", "metadata", "runs", "tex", ".github"}
 ARTIFACT_DIRS = {"theory", "theories", "generated", "metadata", "runs", "docs", "tex"}
 
 SKIP_DIRS = {".git", ".lake", "__pycache__", ".DS_Store", "secret"}
@@ -110,13 +120,88 @@ def _term_re(terms):
     Residual hole, recorded rather than papered over: a term glued directly to
     a letter, with no separator and no case change, is still missed. Closing
     that needs tokenizing identifiers rather than scanning lines.
+
+    The terms are compiled as a prefix tree rather than a flat alternation.
+    Same positions match: a match starts wherever some term begins at an
+    identifier boundary. A flat alternation retries every term at every
+    position, which on a corpus file several hundred MB long was the
+    difference between a guard run of minutes and one of hours. Where one
+    listed phrase extends another, the tree reports the longer one, so the
+    matched text can differ; which lines are flagged cannot.
     """
-    return re.compile(r"(?<![a-z0-9])(" + "|".join(terms) + r")\w*", re.IGNORECASE)
+    return re.compile(_pattern(terms), re.IGNORECASE)
+
+
+def _trie(terms):
+    """A regex for `terms` with shared prefixes factored out. Terms are literals."""
+    root = {}
+    for term in terms:
+        node = root
+        for ch in term:
+            node = node.setdefault(ch, {})
+        node[""] = {}
+
+    def emit(node):
+        ends_here = "" in node
+        alts = [re.escape(ch) + emit(node[ch]) for ch in sorted(k for k in node if k)]
+        if not alts:
+            return ""
+        body = alts[0] if len(alts) == 1 and not ends_here else "(?:" + "|".join(alts) + ")"
+        return body + ("?" if ends_here else "")
+
+    return emit(root)
+
+
+def _pattern(terms):
+    return r"(?<![a-z0-9])(" + _trie(terms) + r")\w*"
+
+
+def _term_re_bytes(terms):
+    """`_term_re` for raw file bytes. Terms are ASCII, so case folding is too."""
+    return re.compile(_pattern(terms).encode("ascii"), re.IGNORECASE)
+
+
+def _is_utf8(data, chunk=1 << 24):
+    """Validate without building the decoded string, which for a large corpus
+    is several times the file's size in memory."""
+    dec = codecs.getincrementaldecoder("utf-8")()
+    try:
+        for i in range(0, len(data), chunk):
+            dec.decode(data[i:i + chunk])
+        dec.decode(b"", final=True)
+    except UnicodeDecodeError:
+        return False
+    return True
+
+
+def scan_bytes(data, patterns):
+    """First hit per tier per line, as (tier, line number, term, context).
+
+    One pass over the whole file instead of one search per line: a corpus is
+    a single JSON line, and splitting it doubles the memory for no gain.
+    """
+    hits = []
+    for tier, rx in patterns:
+        line, pos, seen = 1, 0, set()
+        for m in rx.finditer(data):
+            line += data.count(b"\n", pos, m.start())
+            pos = m.start()
+            if line in seen:
+                continue
+            seen.add(line)
+            start = max(data.rfind(b"\n", 0, m.start()) + 1, m.start() - 40)
+            stop = data.find(b"\n", m.end())
+            stop = min(len(data) if stop < 0 else stop, m.start() + 50)
+            context = data[start:stop].decode("utf-8", "replace").strip()
+            hits.append((tier, line, m.group(0).decode("ascii", "replace"), context))
+    order = {tier: i for i, (tier, _) in enumerate(patterns)}
+    hits.sort(key=lambda h: (h[1], order[h[0]]))
+    return hits
 
 
 def scan_vocab(hard, artifacts):
-    hard_re = _term_re(hard)
-    art_re = _term_re(artifacts)
+    hard_re = _term_re_bytes(hard)
+    art_re = _term_re_bytes(artifacts)
     hits = []
     for dirname in PUBLIC_DIRS + ["<root>"]:
         patterns = [("hard", hard_re)]
@@ -124,15 +209,16 @@ def scan_vocab(hard, artifacts):
             patterns.append(("artifact", art_re))
         for path in (root_files() if dirname == "<root>" else walk(dirname)):
             try:
-                text = path.read_text(encoding="utf-8")
-            except (UnicodeDecodeError, OSError):
+                data = path.read_bytes()
+            except OSError:
                 continue
-            for lineno, line in enumerate(text.splitlines(), 1):
-                for tier, pat in patterns:
-                    m = pat.search(line)
-                    if m:
-                        rel = path.relative_to(ROOT)
-                        hits.append((tier, f"{rel}:{lineno}", m.group(0), line.strip()[:90]))
+            # Files that are not UTF-8 were skipped before this scanned bytes;
+            # they still are, so the set of scanned files has not changed.
+            if not _is_utf8(data):
+                continue
+            rel = path.relative_to(ROOT)
+            for tier, lineno, term, context in scan_bytes(data, patterns):
+                hits.append((tier, f"{rel}:{lineno}", term, context))
     return hits
 
 
@@ -195,17 +281,31 @@ def scan_commit_messages(hard):
     return hits
 
 
-def main():
+def report(hits, show=False):
+    """Print hits. Without `show`, locations only: no term, no context."""
+    print(f"leakguard: {len(hits)} violation(s)\n")
+    for tier, loc, term, line in hits:
+        if show:
+            print(f"  [{tier}] {loc}  ({term})")
+            print(f"          {line}")
+        else:
+            print(f"  [{tier}] {loc}")
+    if not show:
+        print("\nMatched terms are hidden. The repository owner can rerun with --show.")
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--show", action="store_true",
+                    help="print matched terms and context (owner only; reveals the wordlist)")
+    args = ap.parse_args(argv)
     assert_roots()
     hard, artifacts = load_vocab()
     hits = scan_vocab(hard, artifacts) + scan_quarantine() + scan_commit_messages(hard)
     if not hits:
         print("leakguard: clean")
         return 0
-    print(f"leakguard: {len(hits)} violation(s)\n")
-    for tier, loc, term, line in hits:
-        print(f"  [{tier}] {loc}  ({term})")
-        print(f"          {line}")
+    report(hits, show=args.show)
     return 1
 
 

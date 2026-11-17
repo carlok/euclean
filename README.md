@@ -17,6 +17,12 @@ was found, what did not survive scrutiny, and why the interpretation stays
 unpublished. Full structural detail in
 [`docs/structural-findings.md`](docs/structural-findings.md).
 
+**An audit of an external metric:** [`docs/interest-audit.md`](docs/interest-audit.md)
+tests the interestingness score of Patel et al., *Learning to Discover
+Interesting Mathematics* (arXiv:2609.28603), against restatement labels that
+this setting can compute exactly. Pre-registered in
+[`docs/interest-prereg.md`](docs/interest-prereg.md) and executed blind.
+
 ## Pipeline
 
 ```
@@ -45,6 +51,7 @@ accepts it; a claim that has not compiled is a conjecture, and is filed as one.
 | `pipeline/admissibility/` | the gate a candidate theory must pass before it is measured |
 | `pipeline/ablation/` `conjecture/` | held-out targets, proposers and bounded attempts |
 | `pipeline/loop/` | the rediscovery driver |
+| `pipeline/interest/` | the pre-registered audit of Patel et al.'s interestingness metric |
 | `generated/` `metadata/` | per-theorem source and provenance |
 | `runs/` | per-run seeds, metrics, reports |
 | `tools/leakguard.py` | fails the build if the public tree acquires semantics |
@@ -77,6 +84,10 @@ domain's vocabulary would give away the domain as surely as the vocabulary
 would. Without that file the guard exits non-zero rather than reporting a clean
 tree it has not actually checked. A clone therefore reproduces the pipeline but
 not the quarantine; only the repository owner can verify it.
+
+Its output names locations only. `--show` adds the matched terms and their
+context, which reveals the wordlist, so it is for the repository owner and never
+for an executor that has to stay blind.
 
 Build a corpus (generation is stochastic; the run id names the output):
 
