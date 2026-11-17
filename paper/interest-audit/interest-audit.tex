@@ -1,11 +1,14 @@
 \documentclass[11pt,a4paper]{article}
 \usepackage{amsmath,amssymb}
 \usepackage{booktabs}
+\usepackage{float}
 \usepackage[hidelinks]{hyperref}
 \input{numbers}
 
 \newcommand{\Iz}{I_0}
 \newcommand{\Uz}{U_0}
+\newcommand{\arxiv}[1]{\href{https://arxiv.org/abs/#1}{arXiv:#1}}
+\newcommand{\repo}[2]{\href{https://github.com/carlok/euclean/#1/main/#2}{\texttt{#2}}}
 
 \title{Interestingness against a theory with known restatements\\[2pt]
 \large A pre-registered audit of Patel et al.\ (2026) on an anonymized formal theory}
@@ -17,7 +20,7 @@
 
 \begin{abstract}
 \noindent
-Patel et al.\ propose scoring a theorem by how long its proof is relative to how
+Patel et al.~\cite{patel} propose scoring a theorem by how long its proof is relative to how
 short its statement is, and use the score to decide which machine-generated
 theorems enter a growing formal library. A known failure of compression- and
 frequency-based scores is that they reward \emph{restatements}: results that
@@ -200,14 +203,14 @@ metric.
 Everything is in the public repository
 \begin{center}\url{https://github.com/carlok/euclean}\end{center}
 \begin{itemize}
-\item \url{docs/interest-audit.md}: the audit report.
-\item \url{docs/interest-prereg.md}: its pre-registration.
-\item \url{kit/}, an implementation of the paper's quantities over a plain JSON
+\item \repo{blob}{docs/interest-audit.md}: the audit report.
+\item \repo{blob}{docs/interest-prereg.md}: its pre-registration.
+\item \repo{tree}{kit/}, an implementation of the paper's quantities over a plain JSON
   library format, with the twelve corpora and their frozen labels. Every choice
   the paper leaves open is a named parameter there. Its tests recompute the
   audit's values from the exported corpora alone and require exact agreement.
   The near-duplicate measurement above is one of its examples.
-\item \url{paper/interest-audit/}, this note: its source, and the script that
+\item \repo{tree}{paper/interest-audit/}, this note: its source, and the script that
   reads every number in it from the frozen report and from that example's
   output.
 \end{itemize}
@@ -218,6 +221,7 @@ The pipeline, the audit and this note were produced with AI coding agents
 (Claude, by Anthropic) working under the author's direction. The author is
 responsible for the content.
 
+\clearpage
 \appendix
 \section{Numbers}
 
@@ -231,7 +235,7 @@ pre-registration sha256 prefix & \texttt{\preregSha} \\
 audit head commit & \texttt{\branchHead} \\
 \end{tabular}}
 
-\begin{table}[h]
+\begin{table}[H]
 \centering\footnotesize
 \begin{tabular}{lll}
 \toprule
@@ -268,7 +272,7 @@ near-duplicate share, random \nearDupK & \subjectNearDupRand & \controlNearDupRa
 \caption{Corpora, H1, H3, H4, and the post-hoc near-duplicate measurement.}
 \end{table}
 
-\begin{table}[h]
+\begin{table}[H]
 \centering\small
 \begin{tabular}{lllll}
 \toprule
@@ -289,7 +293,7 @@ cut short by the engine's time budget.
 \begin{thebibliography}{9}
 
 \bibitem{patel} N.~Patel, A.~Rammal, A.~Hayat, R.~Munos, J.~Kempe.
-\emph{Learning to Discover Interesting Mathematics}. arXiv:2609.28603, 2026.
+\emph{Learning to Discover Interesting Mathematics}. \arxiv{2609.28603}, 2026.
 
 \bibitem{lenat} D.~Lenat. \emph{AM: An Artificial Intelligence Approach to
 Discovery in Mathematics as Heuristic Search}. PhD thesis, Stanford University,
@@ -298,11 +302,12 @@ Discovery in Mathematics as Heuristic Search}. PhD thesis, Stanford University,
 \bibitem{colton} S.~Colton. \emph{Automated Theory Formation in Pure
 Mathematics}. Springer, 2002.
 
-\bibitem{leanconjecturer} \emph{LeanConjecturer: Automatic Generation of
-Mathematical Conjectures for Theorem Proving}. arXiv:2506.22005.
+\bibitem{leanconjecturer} N.~Onda, K.~Kasaura, Y.~Oriike, M.~Taniguchi,
+A.~Sannai, S.~Sonoda. \emph{LeanConjecturer: Automatic Generation of
+Mathematical Conjectures for Theorem Proving}. \arxiv{2506.22005}, 2025.
 
 \bibitem{porto} A.~Porto. \emph{Beyond Correctness: Toward Automated Novelty
-Verification with Lean 4}. arXiv:2608.14669, 2026.
+Verification with Lean 4}. \arxiv{2608.14669}, 2026.
 
 \end{thebibliography}
 
