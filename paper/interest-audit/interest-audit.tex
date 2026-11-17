@@ -1,0 +1,309 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage[hidelinks]{hyperref}
+\input{numbers}
+
+\newcommand{\Iz}{I_0}
+\newcommand{\Uz}{U_0}
+
+\title{Interestingness against a theory with known restatements\\[2pt]
+\large A pre-registered audit of Patel et al.\ (2026) on an anonymized formal theory}
+\author{Carlo Perassi}
+\date{November 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+Patel et al.\ propose scoring a theorem by how long its proof is relative to how
+short its statement is, and use the score to decide which machine-generated
+theorems enter a growing formal library. A known failure of compression- and
+frequency-based scores is that they reward \emph{restatements}: results that
+look new but only carry one axiom's conclusion forward. We test the metric on a
+small anonymized first-order theory where every restatement can be labelled
+exactly from proof dependencies, with a second theory as a control, under a
+pre-registration frozen before any score was computed and by an executor with
+no access to the theory's interpretation. The metric does not reward
+restatements; if anything it avoids them. It also does not track usefulness on
+this material: it follows how many axioms a result needs, and runs against how
+often the result is reused. The paper's own filters either miss the
+restatements or catch them only by rejecting nearly everything. An open
+implementation of the metric and the labelled corpora are released with this
+note.
+\end{abstract}
+
+\section{Setting}
+
+The test bed is a research pipeline that derives consequences of a first-order
+theory, checks every derivation with the Lean~4 kernel, and then tries to
+recover structure from the resulting corpus without being told what the
+symbols mean. The theory is given as one sort, two relation symbols of fixed
+arity and ten axioms, all under opaque names. Its interpretation exists but is
+held outside the analysed tree and is consulted only after results are frozen.
+A second, richer theory under the same treatment serves as a control.
+
+Each corpus is a set of kernel-verified statements with their proof terms and
+the full citation graph among them. Because proofs are built as terms and
+only checked by Lean, the dependency graph is exact: for every statement we know
+which axioms it ultimately rests on.
+
+An earlier stage of this project found that its own scores for invented
+concepts, based on compression and frequency, favoured a pattern that turned
+out to be one axiom's conclusion recurring across hundreds of proofs. Surface
+similarity would not have exposed it; the axiom-dependency footprint did.
+
+\section{What is already known}
+
+Interestingness as a search criterion goes back to Lenat's AM~\cite{lenat} and
+to Colton's HR~\cite{colton}, which ranked conjectures and concepts with
+hand-designed measures of novelty, surprise and applicability. Recent work
+returns to the question at the scale of Lean and Mathlib.
+LeanConjecturer~\cite{leanconjecturer} generates conjectures for theorem
+proving; Porto~\cite{porto} asks whether a verified theorem is actually new,
+combining library search, triviality tactics and how far apart two proofs' premise sets are.
+
+Patel et al.~\cite{patel} define \emph{intrinsic interestingness} as
+\[
+  I(T\mid P) = 100\,\frac{V(T\mid P)}{L(T\mid P)},
+\]
+where $V$ is the proof cost of $T$ given premises $P$, counted in source LoC,
+and $L$ is the size in characters of the statement plus the definitions
+it needs that $P$ does not already supply. With no premises this gives an
+absolute score $\Iz(T)$. They report Spearman $\rho = 0.756$ against a utility
+$\Uz(T) = |D(T)|\cdot V(T\mid\varnothing)$, where $D(T)$ is the set of results
+citing $T$ directly, on Mathlib. The score is used as a reward for a conjecturing
+model and as the promotion rule in a self-expanding library, with a triviality
+filter (\texttt{assumption}, \texttt{rfl}, \texttt{simp}, \texttt{tauto},
+\texttt{simp\_all}), a token-similarity restatement filter, and a language-model
+de-duplication step.
+
+\section{The question}
+
+On Mathlib nobody can say exactly which theorems are restatements. Here we
+can. The question is whether $\Iz$ ranks restatements highly, whether the
+paper's filters catch them, whether the $\Iz$--$\Uz$ relation carries over, and
+what a promotion loop driven by $\Iz$ ends up keeping.
+
+Restatements are labelled from proof dependencies alone, before any score is
+seen: R0, the statement is an axiom's conclusion up to canonical form; R1, its
+dependency footprint is a single axiom and it follows by instantiation and
+argument permutation; R2, every proof supporting it cites the axiom whose
+conclusion it is. Everything else is N.
+
+Five hypotheses were fixed in advance, each with a decision rule:
+H1, top-50 enrichment of restatements under $\Iz$; H2, recall of the paper's
+filters on R1 and R2, with their false-positive rate on N; H3, rank
+correlations of $\Iz$ with $\Uz$, with this project's structural importance
+ranking and with footprint size; H4, a six-round promotion loop with no
+language model, candidates drawn from the corpus; H5, an exploratory corrected
+score that decides nothing.
+
+\section{What was found}
+
+\paragraph{$\Iz$ does not reward restatements.}
+Across all \hOneVariants{} variants of the metric (three ways of measuring $V$, two
+ways of expanding premises, raw or canonicalised statements) not one ranking
+puts more restatements in its top 50 than the corpus base rate. In the control
+theory the top 50 contains none at all; in the subject, one permutation in three
+is significantly depleted. The same holds for $\Uz$ and for this project's own
+importance ranking: none of the \hOneRankings{} rankings tested is enriched.
+The restatement trap that motivated the audit is not where this metric fails.
+
+\paragraph{The paper's filters do not separate restatements.}
+The triviality filter catches every propagated restatement (R2) and no
+single-axiom one (R1), while flagging almost nothing else. The token-similarity
+restatement filter, which the paper describes without a threshold, flags
+\hTwoRestFPR{} of ordinary statements at the pre-registered stand-in: in a
+small signature most statements share most tokens with some premise. Combined,
+the two catch every restatement only by rejecting nearly the whole corpus, so
+the pre-registered recall rule is met with no separation at all
+(Youden's $J$ \hTwoCombJ). The control theory produced no R1 or R2 statements,
+so H2 is undefined there.
+
+\paragraph{$\Iz$ does not track usefulness here.}
+The paper's headline relation does not carry over: $\rho(\Iz,\Uz)$ ranges over
+\subjectRhoU{} in the subject and \controlRhoU{} in the control, against 0.756
+on Mathlib. What $\Iz$ does follow is the size of a statement's axiom footprint
+($\rho$ \subjectRhoFoot{}, control \controlRhoFoot). It runs \emph{against}
+structural importance ($\rho$ \subjectRhoImp{}, control \controlRhoImp) and
+against direct reuse ($\rho$ \subjectRhoUsers{}, control \controlRhoUsers). On
+this material the score favours results that are expensive to derive and
+little used.
+
+\paragraph{Promotion by $\Iz$ is indistinguishable from random.}
+In a six-round loop promoting ten statements per round, promotion by $\Iz$
+never puts more restatements among the promoted than random promotion does: it
+falls inside the random band in \subjectLoopIWithin{} of \subjectRuns{} subject
+runs and below it in \subjectLoopIBelow, and inside it in \controlLoopIWithin{} of
+\controlRuns{} control runs. Adding the paper's restatement filter to the loop
+moves the share \emph{up}: above the random band in \subjectLoopFiltAbove{} of
+\subjectRuns{} subject runs and \controlLoopFiltAbove{} of \controlRuns{} control
+runs. Removing almost every candidate leaves a residue richer in restatements.
+That policy promoted only \subjectFiltPromoted{} statements per run in the
+subject and \controlFiltPromoted{} in the control, so this is a warning, not a
+measurement.
+
+\paragraph{Its top ranks hold near-duplicates (post hoc).}
+This was not pre-registered. Reading the top-ranked statements after the audit
+was frozen showed several that differ from another top-ranked statement only in
+one hypothesis. Measured structurally, as the share of the top \nearDupK{} that
+has another top-\nearDupK{} entry one hypothesis apart, it is a median of
+\subjectNearDupIZeroMedian{} under $\Iz$ in the subject and
+\controlNearDupIZeroMedian{} in the control (per corpus, \controlNearDupIZero),
+against \subjectNearDupRandMedian{} for random draws; $\Iz$ exceeds random in
+\subjectNearDupAboveRandom{} of 6 subject and \controlNearDupAboveRandom{} of 6
+control corpora. $\Uz$ and structural importance show it less: medians of
+\subjectNearDupUZeroMedian{} and \controlNearDupUZeroMedian{} for $\Uz$,
+\subjectNearDupImpMedian{} and \controlNearDupImpMedian{} for importance. The
+paper's language-model filter, which removes equivalent conjectures and
+enforces diversity across theorem families, is aimed at this, and the audit did
+not reproduce it: the effect is evidence that the filter does real work, not
+that it is missing.
+
+\paragraph{Method.}
+Three choices did the work. Labels were computed from exact proof dependencies
+and frozen by hash before any score existed, so no verdict could influence them. The
+executor never read the interpretation; it did glimpse two wordlist entries in
+guard output, which the pre-registration discloses. Wording that touched the
+anonymization was corrected by a separate session that could see it. A control
+theory separated what belongs to the metric from what belongs to one theory:
+several effects appear in both, which is what makes them claims about the
+metric.
+
+\section{Limits}
+
+\begin{itemize}
+\item Restatements are rare, \subjectBaseRate{} of the subject corpus and
+  \controlBaseRate{} of the control, so a top-50 list holds one or two by
+  chance. H1 can detect strong enrichment and depletion; it cannot detect a
+  mild preference.
+\item $V$ counts LoC of emitted proof terms under one fixed layout, plus two
+  alternatives (term size, a fixed tactic ladder). The paper counts tactic
+  proofs written by people and models. All three give the same H1 verdict,
+  which bounds the style objection but does not remove it; H3 is reported for
+  the primary variant only.
+\item Statements are short and identifiers anonymized, so only ranks within a
+  corpus are compared, never absolute values with the paper's.
+\item The language-model de-duplication step was not reproduced.
+\item Two theories, six corpora each. The conclusions are about this metric on
+  small first-order theories, not about Mathlib.
+\item The restatement filter's threshold is not given in the paper; the
+  pre-registered stand-in (token-set Jaccard 0.70, the value the paper uses
+  for a different check) was fixed in advance and a sweep is reported, but a
+  different threshold is a different filter.
+\end{itemize}
+
+\section{Code and data}
+
+Everything is in the public repository
+\begin{center}\url{https://github.com/carlok/euclean}\end{center}
+\begin{itemize}
+\item \url{docs/interest-audit.md}: the audit report.
+\item \url{docs/interest-prereg.md}: its pre-registration.
+\item \url{kit/}, an implementation of the paper's quantities over a plain JSON
+  library format, with the twelve corpora and their frozen labels. Every choice
+  the paper leaves open is a named parameter there. Its tests recompute the
+  audit's values from the exported corpora alone and require exact agreement.
+  The near-duplicate measurement above is one of its examples.
+\item \url{paper/interest-audit/}, this note: its source, and the script that
+  reads every number in it from the frozen report and from that example's
+  output.
+\end{itemize}
+
+\section*{Acknowledgements}
+
+The pipeline, the audit and this note were produced with AI coding agents
+(Claude, by Anthropic) working under the author's direction. The author is
+responsible for the content.
+
+\appendix
+\section{Numbers}
+
+All values are ranges over three identifier permutations and two base seeds,
+read by script from the frozen report, itself generated from run artifacts.
+
+\smallskip
+{\small\begin{tabular}{@{}ll@{}}
+report sha256 prefix & \texttt{\reportSha} \\
+pre-registration sha256 prefix & \texttt{\preregSha} \\
+audit head commit & \texttt{\branchHead} \\
+\end{tabular}}
+
+\begin{table}[h]
+\centering\footnotesize
+\begin{tabular}{lll}
+\toprule
+ & subject & control \\
+\midrule
+corpora & \subjectCorpora & \controlCorpora \\
+statements per corpus & \subjectKept & \controlKept \\
+R0 per corpus & \subjectRZero & \controlRZero \\
+R1 per corpus & \subjectROne & \controlROne \\
+R2 per corpus & \subjectRTwo & \controlRTwo \\
+restatement base rate & \subjectBaseRate & \controlBaseRate \\
+corpora with a clock stop & \subjectClockStops & \controlClockStops \\
+\midrule
+top-50 restatement share, $\Iz$ & \subjectTopKShare & \controlTopKShare \\
+top-50 restatement share, importance & \subjectImpShare & \controlImpShare \\
+\midrule
+$\rho(\Iz, \Uz)$, $\Uz>0$ & \subjectRhoU & \controlRhoU \\
+$\rho(\Iz, \text{importance})$ & \subjectRhoImp & \controlRhoImp \\
+$\rho(\Iz, \text{footprint size})$ & \subjectRhoFoot & \controlRhoFoot \\
+$\rho(\Iz, \text{direct users})$ & \subjectRhoUsers & \controlRhoUsers \\
+\midrule
+loop, random band (low edge) & \subjectRandLo & \controlRandLo \\
+loop, random band (high edge) & \subjectRandHi & \controlRandHi \\
+loop, promoted by $\Iz$ & \subjectLoopI & \controlLoopI \\
+loop, $\Iz$ with restatement filter & \subjectLoopFilt & \controlLoopFilt \\
+loop, promoted by proof size & \subjectLoopSize & \controlLoopSize \\
+\midrule
+near-duplicate share, top \nearDupK, $\Iz$ & \subjectNearDupIZero & \controlNearDupIZero \\
+near-duplicate share, top \nearDupK, $\Uz$ & \subjectNearDupUZero & \controlNearDupUZero \\
+near-duplicate share, top \nearDupK, importance & \subjectNearDupImp & \controlNearDupImp \\
+near-duplicate share, random \nearDupK & \subjectNearDupRand & \controlNearDupRand \\
+\bottomrule
+\end{tabular}
+\caption{Corpora, H1, H3, H4, and the post-hoc near-duplicate measurement.}
+\end{table}
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lllll}
+\toprule
+filter (subject) & recall R1 & recall R2 & FPR on N & Youden's $J$ \\
+\midrule
+triviality & \hTwoTrivRecallOne & \hTwoTrivRecallTwo & \hTwoTrivFPR & \hTwoTrivJ \\
+restatement & \hTwoRestRecallOne & \hTwoRestRecallTwo & \hTwoRestFPR & \hTwoRestJ \\
+combined & \hTwoCombRecallOne & \hTwoCombRecallTwo & \hTwoCombFPR & \hTwoCombJ \\
+\bottomrule
+\end{tabular}
+\caption{H2 on the subject theory. The control has no R1 or R2 statements.}
+\end{table}
+
+A duplicate build of one control corpus, run under different machine load,
+was \dupIdentical{} to the original; no corpus in the audit had a generation
+cut short by the engine's time budget.
+
+\begin{thebibliography}{9}
+
+\bibitem{patel} N.~Patel, A.~Rammal, A.~Hayat, R.~Munos, J.~Kempe.
+\emph{Learning to Discover Interesting Mathematics}. arXiv:2609.28603, 2026.
+
+\bibitem{lenat} D.~Lenat. \emph{AM: An Artificial Intelligence Approach to
+Discovery in Mathematics as Heuristic Search}. PhD thesis, Stanford University,
+1976.
+
+\bibitem{colton} S.~Colton. \emph{Automated Theory Formation in Pure
+Mathematics}. Springer, 2002.
+
+\bibitem{leanconjecturer} \emph{LeanConjecturer: Automatic Generation of
+Mathematical Conjectures for Theorem Proving}. arXiv:2506.22005.
+
+\bibitem{porto} A.~Porto. \emph{Beyond Correctness: Toward Automated Novelty
+Verification with Lean 4}. arXiv:2608.14669, 2026.
+
+\end{thebibliography}
+
+\end{document}

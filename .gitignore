@@ -34,3 +34,13 @@ metadata/
 # stand structurally. The interpretation belongs in an appendix outside this
 # directory, never in here.
 tex/
+
+# LaTeX build byproducts next to published notes. The .tex and its .pdf are
+# committed together; everything else latexmk leaves behind is not.
+paper/**/*.aux
+paper/**/*.log
+paper/**/*.out
+paper/**/*.toc
+paper/**/*.fls
+paper/**/*.fdb_latexmk
+paper/**/*.synctex.gz

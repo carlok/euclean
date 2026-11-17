@@ -1,0 +1,116 @@
+{
+ "k": 50,
+ "draws": 200,
+ "seed": 0,
+ "post_hoc": true,
+ "corpora": [
+  {
+   "run": "interest-t0f85211-p0-s0",
+   "role": "subject",
+   "statements": 1904,
+   "I0": 0.16,
+   "U0": 0.0,
+   "importance": 0.0,
+   "random_mean": 0.0298
+  },
+  {
+   "run": "interest-t0f85211-p0-s100",
+   "role": "subject",
+   "statements": 952,
+   "I0": 0.12,
+   "U0": 0.0,
+   "importance": 0.0,
+   "random_mean": 0.033800000000000004
+  },
+  {
+   "run": "interest-t0f85211-p1-s0",
+   "role": "subject",
+   "statements": 1776,
+   "I0": 0.12,
+   "U0": 0.04,
+   "importance": 0.0,
+   "random_mean": 0.022
+  },
+  {
+   "run": "interest-t0f85211-p1-s100",
+   "role": "subject",
+   "statements": 1855,
+   "I0": 0.0,
+   "U0": 0.08,
+   "importance": 0.12,
+   "random_mean": 0.03
+  },
+  {
+   "run": "interest-t0f85211-p2-s0",
+   "role": "subject",
+   "statements": 1741,
+   "I0": 0.12,
+   "U0": 0.16,
+   "importance": 0.08,
+   "random_mean": 0.0285
+  },
+  {
+   "run": "interest-t0f85211-p2-s100",
+   "role": "subject",
+   "statements": 1663,
+   "I0": 0.08,
+   "U0": 0.0,
+   "importance": 0.0,
+   "random_mean": 0.0141
+  },
+  {
+   "run": "interest-t0da3c76-p0-s0",
+   "role": "control",
+   "statements": 1225,
+   "I0": 0.26,
+   "U0": 0.0,
+   "importance": 0.04,
+   "random_mean": 0.024
+  },
+  {
+   "run": "interest-t0da3c76-p0-s100",
+   "role": "control",
+   "statements": 1045,
+   "I0": 0.36,
+   "U0": 0.0,
+   "importance": 0.04,
+   "random_mean": 0.0329
+  },
+  {
+   "run": "interest-t0da3c76-p1-s0",
+   "role": "control",
+   "statements": 1616,
+   "I0": 0.08,
+   "U0": 0.04,
+   "importance": 0.08,
+   "random_mean": 0.0298
+  },
+  {
+   "run": "interest-t0da3c76-p1-s100",
+   "role": "control",
+   "statements": 1804,
+   "I0": 0.06,
+   "U0": 0.16,
+   "importance": 0.12,
+   "random_mean": 0.0305
+  },
+  {
+   "run": "interest-t0da3c76-p2-s0",
+   "role": "control",
+   "statements": 1482,
+   "I0": 0.2,
+   "U0": 0.0,
+   "importance": 0.0,
+   "random_mean": 0.0243
+  },
+  {
+   "run": "interest-t0da3c76-p2-s100",
+   "role": "control",
+   "statements": 1381,
+   "I0": 0.0,
+   "U0": 0.08,
+   "importance": 0.0,
+   "random_mean": 0.0269
+  }
+ ]
+}

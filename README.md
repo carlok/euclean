@@ -21,7 +21,9 @@ unpublished. Full structural detail in
 tests the interestingness score of Patel et al., *Learning to Discover
 Interesting Mathematics* (arXiv:2609.28603), against restatement labels that
 this setting can compute exactly. Pre-registered in
-[`docs/interest-prereg.md`](docs/interest-prereg.md) and executed blind.
+[`docs/interest-prereg.md`](docs/interest-prereg.md) and executed blind. A short
+note is in [`paper/interest-audit/`](paper/interest-audit/), and [`kit/`](kit/)
+has an open implementation of the metric with the labelled corpora.
 
 ## Pipeline
 
@@ -54,6 +56,8 @@ accepts it; a claim that has not compiled is a conjecture, and is filed as one.
 | `pipeline/interest/` | the pre-registered audit of Patel et al.'s interestingness metric |
 | `generated/` `metadata/` | per-theorem source and provenance |
 | `runs/` | per-run seeds, metrics, reports |
+| `kit/` | an implementation of Patel et al.'s quantities over a plain JSON format, with the audit's labelled corpora |
+| `paper/` | short notes, as TeX source with the compiled PDF |
 | `tools/leakguard.py` | fails the build if the public tree acquires semantics |
 | `tools/ensemble_driver.py` | drives the grid across identifier permutations |
 | `tools/rescore_importance.py` | rebuilds stored rankings after a scoring change |
